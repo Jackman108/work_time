@@ -1,0 +1,29 @@
+{
+  "name": "builder-manager",
+  "version": "1.0.0",
+  "description": "Система управления строительными проектами на Electron + SQLite",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "node dev-start.js",
+    "dev:vite": "cd renderer && vite",
+    "dev:electron": "electron .",
+    "vite": "cd renderer && vite",
+    "build": "cd renderer && vite build",
+    "prod": "cd renderer && npx vite build && cd .. && npm start"
+  },
+  "keywords": ["electron", "sqlite", "строительство"],
+  "author": "AI архитектор",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^8.1.0",
+    "electron": "latest",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "bootstrap": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0",
+    "@vitejs/plugin-react": "^4.0.0"
+  }
+}
