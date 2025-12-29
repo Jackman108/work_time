@@ -1,20 +1,42 @@
-// Базовый модуль для работы с базой данных SQLite через better-sqlite3
+/**
+ * Модуль для работы с базой данных SQLite через better-sqlite3
+ * Реализует инициализацию БД, миграции и поддержку транзакций
+ * Следует принципам Single Responsibility и DRY
+ * 
+ * @module database
+ */
+
 const path = require('path');
 const Database = require('better-sqlite3');
-const dbPath = path.join(__dirname, 'db', 'app.db');
 const fs = require('fs');
 
-// Если папки для БД нет, создаём
-if (!fs.existsSync(path.join(__dirname, 'db'))) {
-  fs.mkdirSync(path.join(__dirname, 'db'));
+// Конфигурация базы данных
+const DB_DIR = path.join(__dirname, 'db');
+const DB_PATH = path.join(DB_DIR, 'app.db');
+
+/**
+ * Создать директорию для БД, если она не существует
+ */
+function ensureDbDirectory() {
+  if (!fs.existsSync(DB_DIR)) {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+  }
 }
 
-// Создаём/открываем базу
-const db = new Database(dbPath);
+// Создаём директорию перед открытием БД
+ensureDbDirectory();
 
-// Создать таблицы, если не существуют
+// Создаём/открываем базу данных
+// Включаем поддержку внешних ключей для целостности данных
+const db = new Database(DB_PATH);
+db.pragma('foreign_keys = ON'); // Включаем проверку внешних ключей
+
+/**
+ * Инициализация структуры базы данных
+ * Создаёт все необходимые таблицы и индексы
+ */
 function initDB() {
-  db.exec(`
+  const schema = `
     -- Таблица проектов (строительных объектов)
     CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,91 +111,144 @@ function initDB() {
     CREATE INDEX IF NOT EXISTS idx_work_log_employee ON work_log(employee_id);
     CREATE INDEX IF NOT EXISTS idx_work_log_project ON work_log(project_id);
     CREATE INDEX IF NOT EXISTS idx_work_log_date ON work_log(date);
+    -- Уникальный индекс для предотвращения дублей: один сотрудник не может иметь две записи в один день на одном объекте
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_work_log_unique ON work_log(employee_id, project_id, date);
     CREATE INDEX IF NOT EXISTS idx_material_log_material ON material_log(material_id);
     CREATE INDEX IF NOT EXISTS idx_material_log_project ON material_log(project_id);
     CREATE INDEX IF NOT EXISTS idx_material_log_date ON material_log(date);
     CREATE INDEX IF NOT EXISTS idx_project_payments_project ON project_payments(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_payments_date ON project_payments(date);
-  `);
+  `;
+  
+  db.exec(schema);
 }
 
-initDB();
-
-// Миграции для обновления существующих баз данных
-function runMigrations() {
-  // Проверяем наличие колонки budget в таблице projects
+/**
+ * Проверить наличие колонки в таблице
+ * @param {string} tableName - Имя таблицы
+ * @param {string} columnName - Имя колонки
+ * @returns {boolean} true, если колонка существует
+ */
+function hasColumn(tableName, columnName) {
   try {
-    db.prepare('SELECT budget FROM projects LIMIT 1').get();
+    const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    return tableInfo.some(col => col.name === columnName);
   } catch (error) {
-    if (error.message.includes('no such column: budget')) {
-      db.exec('ALTER TABLE projects ADD COLUMN budget REAL DEFAULT 0');
-    }
+    return false;
   }
+}
 
-  // Проверяем наличие колонки phone в таблице employees
+/**
+ * Выполнить миграцию (добавление колонки)
+ * @param {string} tableName - Имя таблицы
+ * @param {string} columnName - Имя колонки
+ * @param {string} columnDefinition - Определение колонки (тип и ограничения)
+ * @returns {boolean} true, если миграция была выполнена
+ */
+function addColumnIfNotExists(tableName, columnName, columnDefinition) {
+  if (!hasColumn(tableName, columnName)) {
   try {
-    db.prepare('SELECT phone FROM employees LIMIT 1').get();
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+      return true;
   } catch (error) {
-    if (error.message.includes('no such column: phone')) {
-      db.exec('ALTER TABLE employees ADD COLUMN phone TEXT');
-    }
-  }
-
-  // Проверяем наличие колонки notes в таблице work_log
-  try {
-    db.prepare('SELECT notes FROM work_log LIMIT 1').get();
-  } catch (error) {
-    if (error.message.includes('no such column: notes')) {
-      db.exec('ALTER TABLE work_log ADD COLUMN notes TEXT');
-    }
-  }
-
-  // Миграция: переход с часовой оплаты на сдельную (зарплата за день)
-  try {
-    const tableInfo = db.prepare("PRAGMA table_info(work_log)").all();
-    const hasSalaryPerDay = tableInfo.some(col => col.name === 'salary_per_day');
-    
-    if (!hasSalaryPerDay) {
-      try {
-        db.exec('ALTER TABLE work_log ADD COLUMN salary_per_day REAL DEFAULT 0');
-      } catch (migrationError) {
-        console.error('Ошибка миграции salary_per_day:', migrationError.message);
+      const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+      if (isDev) {
+        console.error(`Ошибка миграции ${tableName}.${columnName}:`, error.message);
       }
-    }
-  } catch (error) {
-    console.error('Ошибка при проверке структуры таблицы work_log:', error.message);
-  }
-
-  // Проверяем наличие колонки notes в таблице material_log
-  try {
-    db.prepare('SELECT notes FROM material_log LIMIT 1').get();
-  } catch (error) {
-    if (error.message.includes('no such column: notes')) {
-      db.exec('ALTER TABLE material_log ADD COLUMN notes TEXT');
+      return false;
     }
   }
+  return false;
+}
 
-  // Проверяем наличие колонок created_at и updated_at
+/**
+ * Выполнить все миграции базы данных
+ * Использует более элегантный подход с проверкой наличия колонок
+ */
+function runMigrations() {
+  const migrations = [
+    // Миграции для таблицы projects
+    { table: 'projects', column: 'budget', definition: 'REAL DEFAULT 0' },
+    { table: 'projects', column: 'created_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    { table: 'projects', column: 'updated_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    
+    // Миграции для таблицы employees
+    { table: 'employees', column: 'phone', definition: 'TEXT' },
+    { table: 'employees', column: 'created_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    { table: 'employees', column: 'updated_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    
+    // Миграции для таблицы materials
+    { table: 'materials', column: 'created_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    { table: 'materials', column: 'updated_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    
+    // Миграции для таблицы work_log
+    { table: 'work_log', column: 'salary_per_day', definition: 'REAL DEFAULT 0' },
+    { table: 'work_log', column: 'notes', definition: 'TEXT' },
+    { table: 'work_log', column: 'created_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+    
+    // Миграции для таблицы material_log
+    { table: 'material_log', column: 'notes', definition: 'TEXT' },
+    { table: 'material_log', column: 'created_at', definition: 'DATETIME DEFAULT CURRENT_TIMESTAMP' }
+  ];
+
+  // Миграция: добавление уникального индекса для предотвращения дублей в work_log
   try {
-    db.prepare('SELECT created_at FROM projects LIMIT 1').get();
-  } catch (error) {
-    if (error.message.includes('no such column: created_at')) {
+    // Проверяем существование индекса
+    const indexes = db.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type='index' AND name='idx_work_log_unique'
+    `).get();
+    
+    if (!indexes) {
+      // Сначала удаляем возможные дубли (оставляем первую запись)
       db.exec(`
-        ALTER TABLE projects ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE projects ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE employees ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE employees ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE materials ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE materials ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE work_log ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-        ALTER TABLE material_log ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
+        DELETE FROM work_log
+        WHERE id NOT IN (
+          SELECT MIN(id)
+          FROM work_log
+          GROUP BY employee_id, project_id, date
+        )
+      `);
+      
+      // Создаём уникальный индекс
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_work_log_unique 
+        ON work_log(employee_id, project_id, date)
       `);
     }
+  } catch (error) {
+    const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+    if (isDev) {
+      console.error('Ошибка создания уникального индекса для work_log:', error.message);
+    }
   }
+
+  // Выполняем миграции в транзакции для безопасности
+  const transaction = db.transaction(() => {
+    migrations.forEach(migration => {
+      addColumnIfNotExists(migration.table, migration.column, migration.definition);
+    });
+  });
+
+  transaction();
+  }
+
+/**
+ * Выполнить функцию в транзакции
+ * Автоматически откатывает изменения при ошибке
+ * @param {Function} fn - Функция для выполнения в транзакции
+ * @returns {*} Результат выполнения функции
+ */
+function transaction(fn) {
+  const txn = db.transaction(fn);
+  return txn();
 }
 
-// Выполняем миграции при каждом запуске
+// Инициализация БД и выполнение миграций
+initDB();
 runMigrations();
 
+// Экспортируем БД и утилиту для транзакций
 module.exports = db;
+module.exports.transaction = transaction;
 

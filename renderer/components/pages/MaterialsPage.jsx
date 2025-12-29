@@ -1,76 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../../api';
+import { useNotifications } from '../../components/NotificationSystem';
+import { useAsyncOperation } from '../../hooks/useAsyncOperation';
+import { useConfirmDialog } from '../../components/ConfirmDialog';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import MaterialForm from '../MaterialForm';
 import MaterialList from '../MaterialList';
 
 /**
  * Страница управления материалами
+ * Использует систему уведомлений и обработку ошибок
  */
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
   const [editingMaterial, setEditingMaterial] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { showError } = useNotifications();
+  const { showConfirm, confirmDialog } = useConfirmDialog();
+
+  const { execute: executeOperation, loading: operationLoading } = useAsyncOperation({
+    showSuccessNotification: true,
+    showErrorNotification: true
+  });
 
   useEffect(() => {
     loadMaterials();
   }, []);
 
   const loadMaterials = async () => {
+    setLoading(true);
     try {
       const data = await getMaterials();
       setMaterials(data);
     } catch (error) {
       console.error('Ошибка загрузки материалов:', error);
+      showError('Ошибка загрузки материалов: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAdd = async (materialData) => {
     try {
-      await createMaterial(materialData);
+      await executeOperation(
+        () => createMaterial(materialData),
+        {
+          successMessage: 'Материал успешно добавлен',
+          errorMessage: 'Ошибка создания материала'
+        }
+      );
       await loadMaterials();
       setEditingMaterial(null);
     } catch (error) {
-      console.error('Ошибка создания материала:', error);
       throw error;
     }
   };
 
   const handleUpdate = async (id, materialData) => {
     try {
-      await updateMaterial(id, materialData);
+      await executeOperation(
+        () => updateMaterial(id, materialData),
+        {
+          successMessage: 'Материал успешно обновлён',
+          errorMessage: 'Ошибка обновления материала'
+        }
+      );
       await loadMaterials();
       setEditingMaterial(null);
     } catch (error) {
-      console.error('Ошибка обновления материала:', error);
       throw error;
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Вы уверены, что хотите удалить этот материал?')) {
-      try {
-        await deleteMaterial(id);
-        await loadMaterials();
-      } catch (error) {
-        console.error('Ошибка удаления материала:', error);
-        alert('Ошибка удаления материала');
+    try {
+      await showConfirm({
+        title: 'Удаление материала',
+        message: 'Вы уверены, что хотите удалить этот материал? Это действие нельзя отменить.',
+        confirmText: 'Удалить',
+        cancelText: 'Отмена',
+        type: 'danger'
+      });
+
+      await executeOperation(
+        () => deleteMaterial(id),
+        {
+          successMessage: 'Материал успешно удалён',
+          errorMessage: 'Ошибка удаления материала'
+        }
+      );
+      await loadMaterials();
+    } catch (error) {
+      if (error !== false) {
+        // Ошибка уже обработана
       }
     }
   };
 
+  if (loading && materials.length === 0) {
+    return <LoadingSpinner fullScreen text="Загрузка материалов..." />;
+  }
+
   return (
-    <div>
-      <h2 className="mb-4">📦 Управление материалами</h2>
-      <MaterialForm 
-        material={editingMaterial}
-        onSave={editingMaterial ? (data) => handleUpdate(editingMaterial.id, data) : handleAdd}
-        onCancel={() => setEditingMaterial(null)}
-      />
-      <MaterialList 
-        materials={materials}
-        onEdit={setEditingMaterial}
-        onDelete={handleDelete}
-      />
-    </div>
+    <>
+      {confirmDialog}
+      <div>
+        <h2 className="mb-4">📦 Управление материалами</h2>
+        {operationLoading && <LoadingSpinner text="Выполнение операции..." />}
+        <MaterialForm 
+          material={editingMaterial}
+          onSave={editingMaterial ? (data) => handleUpdate(editingMaterial.id, data) : handleAdd}
+          onCancel={() => setEditingMaterial(null)}
+          existingMaterials={materials.filter(m => !editingMaterial || m.id !== editingMaterial.id)}
+        />
+        <MaterialList 
+          materials={materials}
+          onEdit={setEditingMaterial}
+          onDelete={handleDelete}
+        />
+      </div>
+    </>
   );
 }
 

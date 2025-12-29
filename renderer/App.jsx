@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { NotificationProvider } from './components/NotificationSystem';
 import Navigation from './components/Navigation.jsx';
 import ProjectsPage from './components/pages/ProjectsPage.jsx';
 import EmployeesPage from './components/pages/EmployeesPage.jsx';
 import MaterialsPage from './components/pages/MaterialsPage.jsx';
 import WorkLogPage from './components/pages/WorkLogPage.jsx';
+import MaterialLogPage from './components/pages/MaterialLogPage.jsx';
 import PayrollPage from './components/pages/PayrollPage.jsx';
 import ReportsPage from './components/pages/ReportsPage.jsx';
 
@@ -26,6 +28,8 @@ export default function App() {
         return <MaterialsPage />;
       case 'work-log':
         return <WorkLogPage />;
+      case 'material-log':
+        return <MaterialLogPage />;
       case 'payroll':
         return <PayrollPage />;
       case 'reports':
@@ -36,11 +40,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-vh-100 bg-light">
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="container py-4">
-        {renderPage()}
+    <NotificationProvider>
+      <div className="min-vh-100 bg-light">
+        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="container py-4">
+          {renderPage()}
+        </div>
       </div>
-    </div>
+    </NotificationProvider>
   );
 }

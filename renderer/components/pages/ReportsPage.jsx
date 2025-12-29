@@ -5,11 +5,14 @@ import {
   getAllMaterialsReport, 
   getOverallStats 
 } from '../../api';
+import { useNotifications } from '../../components/NotificationSystem';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 /**
  * Страница отчётов и аналитики
  * Показывает общую картину по объектам, людям и материалам
+ * Использует систему уведомлений и обработку ошибок
  */
 export default function ReportsPage() {
   const [activeReport, setActiveReport] = useState('overall');
@@ -20,6 +23,7 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(false);
+  const { showError } = useNotifications();
 
   useEffect(() => {
     loadOverallStats();
@@ -41,6 +45,7 @@ export default function ReportsPage() {
       setOverallStats(data);
     } catch (error) {
       console.error('Ошибка загрузки общей статистики:', error);
+      showError('Ошибка загрузки общей статистики: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
@@ -51,6 +56,7 @@ export default function ReportsPage() {
       setProjectsReport(data);
     } catch (error) {
       console.error('Ошибка загрузки отчёта по проектам:', error);
+      showError('Ошибка загрузки отчёта по проектам: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
       setLoading(false);
     }
@@ -63,6 +69,7 @@ export default function ReportsPage() {
       setEmployeesReport(data);
     } catch (error) {
       console.error('Ошибка загрузки отчёта по сотрудникам:', error);
+      showError('Ошибка загрузки отчёта по сотрудникам: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
       setLoading(false);
     }
@@ -75,11 +82,16 @@ export default function ReportsPage() {
       setMaterialsReport(data);
     } catch (error) {
       console.error('Ошибка загрузки отчёта по материалам:', error);
+      showError('Ошибка загрузки отчёта по материалам: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
       setLoading(false);
     }
   };
 
+
+  if (loading && activeReport !== 'overall') {
+    return <LoadingSpinner fullScreen text="Загрузка отчёта..." />;
+  }
 
   return (
     <div>

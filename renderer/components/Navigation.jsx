@@ -11,6 +11,7 @@ export default function Navigation({ activeTab, onTabChange }) {
     { id: 'employees', label: 'Сотрудники', icon: '👷' },
     { id: 'materials', label: 'Материалы', icon: '📦' },
     { id: 'work-log', label: 'Заработанные деньги', icon: '💰' },
+    { id: 'material-log', label: 'Списание материалов', icon: '📋' },
     { id: 'payroll', label: 'Поступления на проекты', icon: '💵' },
     { id: 'reports', label: 'Отчёты', icon: '📊' }
   ];

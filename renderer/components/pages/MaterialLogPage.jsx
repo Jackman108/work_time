@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { getProjectPayments, createProjectPayment, updateProjectPayment, deleteProjectPayment, getProjects } from '../../api';
+import { getMaterialLogs, createMaterialLog, updateMaterialLog, deleteMaterialLog, getProjects, getMaterials } from '../../api';
 import { useNotifications } from '../../components/NotificationSystem';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
 import { useConfirmDialog } from '../../components/ConfirmDialog';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import ProjectPaymentForm from '../ProjectPaymentForm';
-import ProjectPaymentList from '../ProjectPaymentList';
+import MaterialLogForm from '../MaterialLogForm';
+import MaterialLogList from '../MaterialLogList';
 
 /**
- * Страница учёта поступлений денег на проекты
+ * Страница учёта списания материалов на проекты
  * Использует систему уведомлений и обработку ошибок
  */
-export default function PayrollPage() {
-  const [payments, setPayments] = useState([]);
+export default function MaterialLogPage() {
+  const [materialLogs, setMaterialLogs] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [editingPayment, setEditingPayment] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [editingLog, setEditingLog] = useState(null);
   const [filters, setFilters] = useState({});
   const [loading, setLoading] = useState(false);
   const { showError } = useNotifications();
@@ -32,12 +33,14 @@ export default function PayrollPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [paymentsData, projectsData] = await Promise.all([
-        getProjectPayments(filters),
-        getProjects()
+      const [logsData, projectsData, materialsData] = await Promise.all([
+        getMaterialLogs(filters),
+        getProjects(),
+        getMaterials()
       ]);
-      setPayments(paymentsData);
+      setMaterialLogs(logsData);
       setProjects(projectsData);
+      setMaterials(materialsData);
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
       showError('Ошибка загрузки данных: ' + (error.message || 'Неизвестная ошибка'));
@@ -46,33 +49,33 @@ export default function PayrollPage() {
     }
   };
 
-  const handleAdd = async (paymentData) => {
+  const handleAdd = async (logData) => {
     try {
       await executeOperation(
-        () => createProjectPayment(paymentData),
+        () => createMaterialLog(logData),
         {
-          successMessage: 'Запись поступления успешно добавлена',
-          errorMessage: 'Ошибка создания записи поступления'
+          successMessage: 'Запись списания успешно добавлена',
+          errorMessage: 'Ошибка создания записи списания'
         }
       );
       await loadData();
-      setEditingPayment(null);
+      setEditingLog(null);
     } catch (error) {
       throw error;
     }
   };
 
-  const handleUpdate = async (id, paymentData) => {
+  const handleUpdate = async (id, logData) => {
     try {
       await executeOperation(
-        () => updateProjectPayment(id, paymentData),
+        () => updateMaterialLog(id, logData),
         {
-          successMessage: 'Запись поступления успешно обновлена',
-          errorMessage: 'Ошибка обновления записи поступления'
+          successMessage: 'Запись списания успешно обновлена',
+          errorMessage: 'Ошибка обновления записи списания'
         }
       );
       await loadData();
-      setEditingPayment(null);
+      setEditingLog(null);
     } catch (error) {
       throw error;
     }
@@ -82,17 +85,17 @@ export default function PayrollPage() {
     try {
       await showConfirm({
         title: 'Удаление записи',
-        message: 'Вы уверены, что хотите удалить эту запись поступления? Это действие нельзя отменить.',
+        message: 'Вы уверены, что хотите удалить эту запись списания? Это действие нельзя отменить.',
         confirmText: 'Удалить',
         cancelText: 'Отмена',
         type: 'danger'
       });
 
       await executeOperation(
-        () => deleteProjectPayment(id),
+        () => deleteMaterialLog(id),
         {
-          successMessage: 'Запись поступления успешно удалена',
-          errorMessage: 'Ошибка удаления записи поступления'
+          successMessage: 'Запись списания успешно удалена',
+          errorMessage: 'Ошибка удаления записи списания'
         }
       );
       await loadData();
@@ -103,7 +106,7 @@ export default function PayrollPage() {
     }
   };
 
-  if (loading && payments.length === 0) {
+  if (loading && materialLogs.length === 0) {
     return <LoadingSpinner fullScreen text="Загрузка данных..." />;
   }
 
@@ -111,7 +114,7 @@ export default function PayrollPage() {
     <>
       {confirmDialog}
       <div>
-        <h2 className="mb-4">💵 Учёт поступлений денег на проекты</h2>
+        <h2 className="mb-4">📦 Учёт списания материалов</h2>
         
         {operationLoading && <LoadingSpinner text="Выполнение операции..." />}
 
@@ -119,7 +122,7 @@ export default function PayrollPage() {
         <div className="card card-body mb-4">
           <h5 className="mb-3">Фильтры</h5>
           <div className="row">
-            <div className="col-md-4 mb-2">
+            <div className="col-md-3 mb-2">
               <label className="form-label">Проект</label>
               <select 
                 className="form-select"
@@ -132,7 +135,20 @@ export default function PayrollPage() {
                 ))}
               </select>
             </div>
-            <div className="col-md-4 mb-2">
+            <div className="col-md-3 mb-2">
+              <label className="form-label">Материал</label>
+              <select 
+                className="form-select"
+                value={filters.materialId || ''}
+                onChange={(e) => setFilters({ ...filters, materialId: e.target.value || null })}
+              >
+                <option value="">Все материалы</option>
+                {materials.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-3 mb-2">
               <label className="form-label">С</label>
               <input 
                 type="date"
@@ -141,7 +157,7 @@ export default function PayrollPage() {
                 onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value || null })}
               />
             </div>
-            <div className="col-md-4 mb-2">
+            <div className="col-md-3 mb-2">
               <label className="form-label">По</label>
               <input 
                 type="date"
@@ -159,18 +175,20 @@ export default function PayrollPage() {
           </button>
         </div>
 
-        <ProjectPaymentForm 
-          payment={editingPayment}
+        <MaterialLogForm 
+          log={editingLog}
           projects={projects}
-          onSave={editingPayment ? (data) => handleUpdate(editingPayment.id, data) : handleAdd}
-          onCancel={() => setEditingPayment(null)}
+          materials={materials}
+          onSave={editingLog ? (data) => handleUpdate(editingLog.id, data) : handleAdd}
+          onCancel={() => setEditingLog(null)}
         />
-        <ProjectPaymentList 
-          payments={payments}
-          onEdit={setEditingPayment}
+        <MaterialLogList 
+          materialLogs={materialLogs}
+          onEdit={setEditingLog}
           onDelete={handleDelete}
         />
       </div>
     </>
   );
 }
+

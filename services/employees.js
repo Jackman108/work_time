@@ -1,36 +1,83 @@
-// Сервис для работы с сотрудниками
+/**
+ * Сервис для работы с сотрудниками
+ * Использует BaseRepository для базовых CRUD операций
+ * Реализует бизнес-логику специфичную для сотрудников
+ * Следует принципам SOLID: Single Responsibility, Dependency Inversion
+ * 
+ * @module services/employees
+ */
+
+const BaseRepository = require('./base/BaseRepository');
+const Validator = require('./base/Validator');
+const { ValidationError, NotFoundError } = require('./base/ErrorHandler');
 const db = require('../database');
+
+// Создаём репозиторий для сотрудников
+const employeesRepository = new BaseRepository('employees', {
+  orderBy: 'name',
+  orderDirection: 'ASC'
+});
 
 /**
  * Получить всех сотрудников
  * @returns {Array} Список всех сотрудников
  */
 function getAllEmployees() {
-  return db.prepare('SELECT * FROM employees ORDER BY name').all();
+  return employeesRepository.getAll();
 }
 
 /**
  * Получить сотрудника по ID
  * @param {number} id - ID сотрудника
  * @returns {Object|null} Сотрудник или null
+ * @throws {NotFoundError} Если сотрудник не найден
  */
 function getEmployeeById(id) {
-  return db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+  const employee = employeesRepository.getById(id);
+  if (!employee) {
+    throw new NotFoundError(`Сотрудник с ID ${id} не найден`);
+  }
+  return employee;
+}
+
+/**
+ * Валидировать данные сотрудника
+ * @param {Object} data - Данные для валидации
+ * @param {boolean} isUpdate - Является ли это обновлением
+ * @returns {Object} Валидированные данные
+ * @throws {ValidationError} Если данные невалидны
+ */
+function validateEmployeeData(data, isUpdate = false) {
+  if (!isUpdate) {
+    Validator.validateRequired(data, ['name']);
+  }
+
+  return {
+    name: Validator.validateString(data.name, 'Имя сотрудника', {
+      minLength: 1,
+      maxLength: 255
+    }),
+    role: Validator.validateString(data.role, 'Должность', {
+      maxLength: 255
+    }),
+    wage_per_hour: Validator.validateNumber(data.wage_per_hour, 'Оплата за час', {
+      min: 0,
+      allowZero: true,
+      allowNegative: false
+    }),
+    phone: data.phone ? Validator.validatePhone(data.phone, 'Телефон') : null
+  };
 }
 
 /**
  * Создать нового сотрудника
  * @param {Object} data - Данные сотрудника
  * @returns {Object} Созданный сотрудник
+ * @throws {ValidationError} Если данные невалидны
  */
 function createEmployee(data) {
-  const { name, role, wage_per_hour, phone } = data;
-  const stmt = db.prepare(`
-    INSERT INTO employees (name, role, wage_per_hour, phone)
-    VALUES (?, ?, ?, ?)
-  `);
-  const result = stmt.run(name, role || null, wage_per_hour || 0, phone || null);
-  return getEmployeeById(result.lastInsertRowid);
+  const validated = validateEmployeeData(data, false);
+  return employeesRepository.create(validated);
 }
 
 /**
@@ -38,27 +85,36 @@ function createEmployee(data) {
  * @param {number} id - ID сотрудника
  * @param {Object} data - Новые данные
  * @returns {Object|null} Обновлённый сотрудник
+ * @throws {ValidationError} Если данные невалидны
+ * @throws {NotFoundError} Если сотрудник не найден
  */
 function updateEmployee(id, data) {
-  const { name, role, wage_per_hour, phone } = data;
-  const stmt = db.prepare(`
-    UPDATE employees 
-    SET name = ?, role = ?, wage_per_hour = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `);
-  stmt.run(name, role || null, wage_per_hour || 0, phone || null, id);
-  return getEmployeeById(id);
+  if (!employeesRepository.exists(id)) {
+    throw new NotFoundError(`Сотрудник с ID ${id} не найден`);
+  }
+
+  const validated = validateEmployeeData(data, true);
+  // Удаляем undefined значения
+  Object.keys(validated).forEach(key => {
+    if (validated[key] === undefined) {
+      delete validated[key];
+    }
+  });
+
+  return employeesRepository.update(id, validated);
 }
 
 /**
  * Удалить сотрудника
  * @param {number} id - ID сотрудника
  * @returns {boolean} Успешно ли удалён
+ * @throws {NotFoundError} Если сотрудник не найден
  */
 function deleteEmployee(id) {
-  const stmt = db.prepare('DELETE FROM employees WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+  if (!employeesRepository.exists(id)) {
+    throw new NotFoundError(`Сотрудник с ID ${id} не найден`);
+  }
+  return employeesRepository.delete(id);
 }
 
 /**
@@ -67,8 +123,13 @@ function deleteEmployee(id) {
  * @param {string} dateFrom - Дата начала периода (опционально)
  * @param {string} dateTo - Дата окончания периода (опционально)
  * @returns {Object} Статистика сотрудника
+ * @throws {NotFoundError} Если сотрудник не найден
  */
 function getEmployeeStats(employeeId, dateFrom = null, dateTo = null) {
+  if (!employeesRepository.exists(employeeId)) {
+    throw new NotFoundError(`Сотрудник с ID ${employeeId} не найден`);
+  }
+
   let query = `
     SELECT 
       COUNT(*) as days_worked,

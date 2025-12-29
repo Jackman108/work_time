@@ -3,11 +3,17 @@ import FormValidator from '../utils/formValidator';
 import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
 
 /**
- * Форма для добавления/редактирования записи поступления денег на проект
+ * Форма для добавления/редактирования записи списания материалов
  * С валидацией на клиенте
+ * @param {Object} log - Запись для редактирования (если null - создание новой)
+ * @param {Array} materials - Список материалов
+ * @param {Array} projects - Список проектов
+ * @param {Function} onSave - Обработчик сохранения
+ * @param {Function} onCancel - Обработчик отмены
  */
-export default function ProjectPaymentForm({ payment, projects, onSave, onCancel }) {
+export default function MaterialLogForm({ log, materials, projects, onSave, onCancel }) {
   const [form, setForm] = useState({ 
+    material_id: '', 
     project_id: '', 
     date: new Date().toISOString().split('T')[0],
     amount: 0,
@@ -17,22 +23,24 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
   const [generalError, setGeneralError] = useState('');
 
   useEffect(() => {
-    if (payment) {
+    if (log) {
       setForm({
-        project_id: payment.project_id || '',
-        date: payment.date || new Date().toISOString().split('T')[0],
-        amount: payment.amount || 0,
-        notes: payment.notes || ''
+        material_id: log.material_id || '',
+        project_id: log.project_id || '',
+        date: log.date || new Date().toISOString().split('T')[0],
+        amount: log.amount || 0,
+        notes: log.notes || ''
       });
     } else {
       setForm({ 
+        material_id: '', 
         project_id: '', 
         date: new Date().toISOString().split('T')[0],
         amount: 0,
         notes: ''
       });
     }
-  }, [payment]);
+  }, [log]);
 
   const handleChange = (e) => {
     const fieldName = e.target.name;
@@ -47,21 +55,19 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
     }
   };
 
-  const handleAmountBlur = (e) => {
-    // При потере фокуса округляем сумму до кратного 100
-    const inputValue = parseFloat(e.target.value) || 0;
-    const roundedValue = Math.round(inputValue / 100) * 100;
-    setForm({ ...form, amount: roundedValue });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError('');
     setErrors({});
 
     const rules = {
-      required: ['project_id', 'date', 'amount'],
+      required: ['material_id', 'project_id', 'date', 'amount'],
       fields: {
+        material_id: {
+          type: 'string',
+          label: 'Материал',
+          required: true
+        },
         project_id: {
           type: 'string',
           label: 'Проект',
@@ -74,9 +80,9 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
         },
         amount: {
           type: 'number',
-          label: 'Сумма',
+          label: 'Количество',
           required: true,
-          min: 100,
+          min: 0.01,
           allowZero: false,
           allowNegative: false
         }
@@ -90,17 +96,11 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
       return;
     }
 
-    // Округляем сумму до кратного 100
-    const roundedAmount = Math.round(form.amount / 100) * 100;
-    if (roundedAmount < 100) {
-      setErrors({ amount: 'Сумма должна быть не менее 100 рублей' });
-      return;
-    }
-
     const dataToSave = {
       ...form,
+      material_id: parseInt(form.material_id),
       project_id: parseInt(form.project_id),
-      amount: roundedAmount
+      amount: parseFloat(form.amount)
     };
 
     try {
@@ -110,15 +110,36 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
     }
   };
 
+  // Получаем выбранный материал для отображения единицы измерения
+  const selectedMaterial = materials.find(m => m.id === parseInt(form.material_id));
+
   return (
     <form className="card card-body mb-4 shadow-sm" style={{maxWidth: 800}} onSubmit={handleSubmit}>
       <h3 className="h5 mb-3">
-        {payment ? '✏️ Редактировать запись' : '➕ Добавить поступление денег на проект'}
+        {log ? '✏️ Редактировать запись списания' : '➕ Добавить списание материала'}
       </h3>
 
       <FormErrors errors={errors} generalError={generalError} />
 
       <div className="row">
+        <div className="col-md-6 mb-2">
+          <label className="form-label">Материал *</label>
+          <select 
+            name="material_id" 
+            value={form.material_id} 
+            onChange={handleChange} 
+            className={getFieldClasses('material_id', errors)}
+            required
+          >
+            <option value="">Выберите материал</option>
+            {materials.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.name} ({m.unit || 'шт'}, {m.price_per_unit ? `${m.price_per_unit.toFixed(2)} руб.` : '0 руб.'})
+              </option>
+            ))}
+          </select>
+          <FieldError error={errors.material_id} show={!!errors.material_id} />
+        </div>
         <div className="col-md-6 mb-2">
           <label className="form-label">Проект *</label>
           <select 
@@ -130,12 +151,14 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
           >
             <option value="">Выберите проект</option>
             {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>{p.name}              </option>
             ))}
           </select>
           <FieldError error={errors.project_id} show={!!errors.project_id} />
         </div>
-        <div className="col-md-6 mb-2">
+      </div>
+      <div className="row">
+        <div className="col-md-4 mb-2">
           <label className="form-label">Дата *</label>
           <input 
             name="date" 
@@ -147,26 +170,29 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
           />
           <FieldError error={errors.date} show={!!errors.date} />
         </div>
-      </div>
-      <div className="row">
-        <div className="col-md-6 mb-2">
-          <label className="form-label">Сумма поступления (руб., кратно 100) *</label>
+        <div className="col-md-4 mb-2">
+          <label className="form-label">
+            Количество {selectedMaterial ? `(${selectedMaterial.unit || 'шт'})` : ''} *
+          </label>
           <input 
             name="amount" 
             value={form.amount} 
             onChange={handleChange}
-            onBlur={handleAmountBlur}
             type="number" 
-            step="100"
-            min="100"
+            step="0.01"
+            min="0.01"
             className={getFieldClasses('amount', errors)}
-            placeholder="100"
+            placeholder="0"
             required
           />
           <FieldError error={errors.amount} show={!!errors.amount} />
-          <small className="form-text text-muted">Сумма поступления денег на проект, кратная 100 рублям</small>
+          {selectedMaterial && (
+            <small className="form-text text-muted">
+              Стоимость: {((form.amount || 0) * (selectedMaterial.price_per_unit || 0)).toFixed(2)} руб.
+            </small>
+          )}
         </div>
-        <div className="col-md-6 mb-2">
+        <div className="col-md-4 mb-2">
           <label className="form-label">Примечание</label>
           <input 
             name="notes" 
@@ -179,9 +205,9 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
       </div>
       <div className="mt-3">
         <button className="btn btn-primary me-2" type="submit">
-          {payment ? 'Сохранить' : 'Добавить'}
+          {log ? 'Сохранить' : 'Добавить'}
         </button>
-        {payment && (
+        {log && (
           <button className="btn btn-secondary" type="button" onClick={onCancel}>
             Отмена
           </button>
