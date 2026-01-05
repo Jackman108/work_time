@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog, getProjects, getEmployees } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '../common';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import WorkLogForm from '../WorkLogForm';
-import WorkLogList from '../WorkLogList';
+import { WorkLogForm } from '../forms';
+import { WorkLogList } from '../lists';
 
 /**
  * Страница учёта заработанных денег работниками
@@ -107,7 +105,7 @@ export default function WorkLogPage() {
   };
 
   if (loading && workLogs.length === 0) {
-    return <LoadingSpinner fullScreen text="Загрузка данных..." />;
+    return <LoadingSpinner fullScreen={true} text="Загрузка данных..." size="lg" className="" />;
   }
 
   return (
@@ -116,7 +114,7 @@ export default function WorkLogPage() {
       <div>
         <h2 className="mb-4">💰 Учёт заработанных денег работниками</h2>
         
-        {operationLoading && <LoadingSpinner text="Выполнение операции..." />}
+        {operationLoading && <LoadingSpinner text="Выполнение операции..." size="md" fullScreen={false} className="" />}
 
         {/* Фильтры */}
         <div className="card card-body mb-4">

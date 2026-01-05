@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import FormValidator from '../utils/formValidator';
-import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
-import { saveToHistory, getSuggestions } from '../utils/autocomplete';
-import { getTemplates, saveTemplate, applyTemplate, checkDuplicates } from '../utils/templates';
+import FormValidator from '../../utils/formValidator';
+import FormErrors, { FieldError, getFieldClasses } from '../common/FormErrors';
+import { saveToHistory, getSuggestions } from '../../utils/autocomplete';
+import { getTemplates, saveTemplate, applyTemplate, checkDuplicates } from '../../utils/templates';
 
 /**
  * Форма для добавления/редактирования сотрудника
  * С валидацией на клиенте, автозаполнением и шаблонами
- * @param {Object} employee - Сотрудник для редактирования (если null - создание нового)
- * @param {Function} onSave - Обработчик сохранения
- * @param {Function} onCancel - Обработчик отмены
- * @param {Array} existingEmployees - Существующие сотрудники для проверки дублей
+ * @param {Object} props - Пропсы компонента
+ * @param {Types.Employee|null} [props.employee] - Сотрудник для редактирования (если null - создание нового)
+ * @param {Function} props.onSave - Обработчик сохранения
+ * @param {Function} props.onCancel - Обработчик отмены
+ * @param {Types.Employee[]} [props.existingEmployees=[]] - Существующие сотрудники для проверки дублей
  */
 export default function EmployeeForm({ employee, onSave, onCancel, existingEmployees = [] }) {
   const [form, setForm] = useState({ 
@@ -331,3 +332,4 @@ export default function EmployeeForm({ employee, onSave, onCancel, existingEmplo
     </form>
   );
 }
+

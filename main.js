@@ -10,6 +10,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const config = require('./config/app.config');
 const { ErrorHandler } = require('./services/base/ErrorHandler');
+const { IPC_CHANNELS } = require('./config/ipc-channels');
 
 // Импорт сервисов для работы с данными
 const projectsService = require('./services/projects');
@@ -107,55 +108,59 @@ process.on('unhandledRejection', (reason, promise) => {
 // Все обработчики организованы по модулям для удобства поддержки
 // Используют централизованную обработку ошибок
 
+// ========== IPC ОБРАБОТЧИКИ ==========
+// Все обработчики используют константы из config/ipc-channels.js
+// Это обеспечивает единый источник истины и предотвращает ошибки
+
 // ---------- Проекты (строительные объекты) ----------
-registerIpcHandler('projects:getAll', () => projectsService.getAllProjects());
-registerIpcHandler('projects:getById', (id) => projectsService.getProjectById(id));
-registerIpcHandler('projects:create', (data) => projectsService.createProject(data));
-registerIpcHandler('projects:update', (id, data) => projectsService.updateProject(id, data));
-registerIpcHandler('projects:delete', (id) => projectsService.deleteProject(id));
-registerIpcHandler('projects:getStats', (projectId) => projectsService.getProjectStats(projectId));
+registerIpcHandler(IPC_CHANNELS.PROJECTS.GET_ALL, () => projectsService.getAllProjects());
+registerIpcHandler(IPC_CHANNELS.PROJECTS.GET_BY_ID, (id) => projectsService.getProjectById(id));
+registerIpcHandler(IPC_CHANNELS.PROJECTS.CREATE, (data) => projectsService.createProject(data));
+registerIpcHandler(IPC_CHANNELS.PROJECTS.UPDATE, (id, data) => projectsService.updateProject(id, data));
+registerIpcHandler(IPC_CHANNELS.PROJECTS.DELETE, (id) => projectsService.deleteProject(id));
+registerIpcHandler(IPC_CHANNELS.PROJECTS.GET_STATS, (projectId) => projectsService.getProjectStats(projectId));
 
 // ---------- Сотрудники ----------
-registerIpcHandler('employees:getAll', () => employeesService.getAllEmployees());
-registerIpcHandler('employees:getById', (id) => employeesService.getEmployeeById(id));
-registerIpcHandler('employees:create', (data) => employeesService.createEmployee(data));
-registerIpcHandler('employees:update', (id, data) => employeesService.updateEmployee(id, data));
-registerIpcHandler('employees:delete', (id) => employeesService.deleteEmployee(id));
-registerIpcHandler('employees:getStats', (employeeId, dateFrom, dateTo) =>
+registerIpcHandler(IPC_CHANNELS.EMPLOYEES.GET_ALL, () => employeesService.getAllEmployees());
+registerIpcHandler(IPC_CHANNELS.EMPLOYEES.GET_BY_ID, (id) => employeesService.getEmployeeById(id));
+registerIpcHandler(IPC_CHANNELS.EMPLOYEES.CREATE, (data) => employeesService.createEmployee(data));
+registerIpcHandler(IPC_CHANNELS.EMPLOYEES.UPDATE, (id, data) => employeesService.updateEmployee(id, data));
+registerIpcHandler(IPC_CHANNELS.EMPLOYEES.DELETE, (id) => employeesService.deleteEmployee(id));
+registerIpcHandler(IPC_CHANNELS.EMPLOYEES.GET_STATS, (employeeId, dateFrom, dateTo) =>
   employeesService.getEmployeeStats(employeeId, dateFrom, dateTo));
 
 // ---------- Материалы ----------
-registerIpcHandler('materials:getAll', () => materialsService.getAllMaterials());
-registerIpcHandler('materials:getById', (id) => materialsService.getMaterialById(id));
-registerIpcHandler('materials:create', (data) => materialsService.createMaterial(data));
-registerIpcHandler('materials:update', (id, data) => materialsService.updateMaterial(id, data));
-registerIpcHandler('materials:delete', (id) => materialsService.deleteMaterial(id));
-registerIpcHandler('materials:getStats', (materialId) => materialsService.getMaterialStats(materialId));
+registerIpcHandler(IPC_CHANNELS.MATERIALS.GET_ALL, () => materialsService.getAllMaterials());
+registerIpcHandler(IPC_CHANNELS.MATERIALS.GET_BY_ID, (id) => materialsService.getMaterialById(id));
+registerIpcHandler(IPC_CHANNELS.MATERIALS.CREATE, (data) => materialsService.createMaterial(data));
+registerIpcHandler(IPC_CHANNELS.MATERIALS.UPDATE, (id, data) => materialsService.updateMaterial(id, data));
+registerIpcHandler(IPC_CHANNELS.MATERIALS.DELETE, (id) => materialsService.deleteMaterial(id));
+registerIpcHandler(IPC_CHANNELS.MATERIALS.GET_STATS, (materialId) => materialsService.getMaterialStats(materialId));
 
 // ---------- Учёт рабочего времени ----------
-registerIpcHandler('workLog:getAll', (filters) => workLogService.getAllWorkLogs(filters));
-registerIpcHandler('workLog:create', (data) => workLogService.createWorkLog(data));
-registerIpcHandler('workLog:update', (id, data) => workLogService.updateWorkLog(id, data));
-registerIpcHandler('workLog:delete', (id) => workLogService.deleteWorkLog(id));
+registerIpcHandler(IPC_CHANNELS.WORK_LOG.GET_ALL, (filters) => workLogService.getAllWorkLogs(filters));
+registerIpcHandler(IPC_CHANNELS.WORK_LOG.CREATE, (data) => workLogService.createWorkLog(data));
+registerIpcHandler(IPC_CHANNELS.WORK_LOG.UPDATE, (id, data) => workLogService.updateWorkLog(id, data));
+registerIpcHandler(IPC_CHANNELS.WORK_LOG.DELETE, (id) => workLogService.deleteWorkLog(id));
 
 // ---------- Учёт списания материалов ----------
-registerIpcHandler('materialLog:getAll', (filters) => materialLogService.getAllMaterialLogs(filters));
-registerIpcHandler('materialLog:create', (data) => materialLogService.createMaterialLog(data));
-registerIpcHandler('materialLog:update', (id, data) => materialLogService.updateMaterialLog(id, data));
-registerIpcHandler('materialLog:delete', (id) => materialLogService.deleteMaterialLog(id));
+registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.GET_ALL, (filters) => materialLogService.getAllMaterialLogs(filters));
+registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.CREATE, (data) => materialLogService.createMaterialLog(data));
+registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.UPDATE, (id, data) => materialLogService.updateMaterialLog(id, data));
+registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.DELETE, (id) => materialLogService.deleteMaterialLog(id));
 
 // ---------- Поступления денег на проекты ----------
-registerIpcHandler('projectPayments:getAll', (filters) => projectPaymentsService.getAllProjectPayments(filters));
-registerIpcHandler('projectPayments:create', (data) => projectPaymentsService.createProjectPayment(data));
-registerIpcHandler('projectPayments:update', (id, data) => projectPaymentsService.updateProjectPayment(id, data));
-registerIpcHandler('projectPayments:delete', (id) => projectPaymentsService.deleteProjectPayment(id));
-registerIpcHandler('projectPayments:getTotalByProject', (projectId) =>
+registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.GET_ALL, (filters) => projectPaymentsService.getAllProjectPayments(filters));
+registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.CREATE, (data) => projectPaymentsService.createProjectPayment(data));
+registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.UPDATE, (id, data) => projectPaymentsService.updateProjectPayment(id, data));
+registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.DELETE, (id) => projectPaymentsService.deleteProjectPayment(id));
+registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.GET_TOTAL_BY_PROJECT, (projectId) =>
   projectPaymentsService.getTotalPaymentsByProject(projectId));
 
 // ---------- Отчёты и аналитика ----------
-registerIpcHandler('reports:getAllProjects', () => reportsService.getAllProjectsReport());
-registerIpcHandler('reports:getAllEmployees', (dateFrom, dateTo) =>
+registerIpcHandler(IPC_CHANNELS.REPORTS.GET_ALL_PROJECTS, () => reportsService.getAllProjectsReport());
+registerIpcHandler(IPC_CHANNELS.REPORTS.GET_ALL_EMPLOYEES, (dateFrom, dateTo) =>
   reportsService.getAllEmployeesReport(dateFrom, dateTo));
-registerIpcHandler('reports:getAllMaterials', () => reportsService.getAllMaterialsReport());
-registerIpcHandler('reports:getOverallStats', () => reportsService.getOverallStats());
+registerIpcHandler(IPC_CHANNELS.REPORTS.GET_ALL_MATERIALS, () => reportsService.getAllMaterialsReport());
+registerIpcHandler(IPC_CHANNELS.REPORTS.GET_OVERALL_STATS, () => reportsService.getOverallStats());
 

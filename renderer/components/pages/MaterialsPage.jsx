@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '../common';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import MaterialForm from '../MaterialForm';
-import MaterialList from '../MaterialList';
+import { MaterialForm } from '../forms';
+import { MaterialList } from '../lists';
 
 /**
  * Страница управления материалами
@@ -86,13 +84,20 @@ export default function MaterialsPage() {
         () => deleteMaterial(id),
         {
           successMessage: 'Материал успешно удалён',
-          errorMessage: 'Ошибка удаления материала'
+          errorMessage: (error) => {
+            // Используем сообщение об ошибке от сервера, если оно есть
+            return error?.message || 'Ошибка удаления материала';
+          }
         }
       );
       await loadMaterials();
     } catch (error) {
       if (error !== false) {
-        // Ошибка уже обработана
+        // Ошибка уже обработана в executeOperation
+        // Но можем показать дополнительное сообщение, если нужно
+        if (error?.message && !error.message.includes('уже обработана')) {
+          showError(error.message);
+        }
       }
     }
   };

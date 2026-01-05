@@ -1,15 +1,15 @@
 import React from 'react';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 
 /**
- * Список всех сотрудников
+ * Список всех материалов
  */
-export default function EmployeeList({ employees, onEdit, onDelete }) {
+export default function MaterialList({ materials, onEdit, onDelete }) {
 
-  if (employees.length === 0) {
+  if (materials.length === 0) {
     return (
       <div className="alert alert-info">
-        <p className="mb-0">Нет добавленных сотрудников. Добавьте первого сотрудника выше.</p>
+        <p className="mb-0">Нет добавленных материалов. Добавьте первый материал выше.</p>
       </div>
     );
   }
@@ -20,32 +20,30 @@ export default function EmployeeList({ employees, onEdit, onDelete }) {
         <thead className="table-dark">
           <tr>
             <th>#</th>
-            <th>ФИО</th>
-            <th>Должность</th>
-            <th>Ставка/час</th>
-            <th>Телефон</th>
+            <th>Название</th>
+            <th>Единица измерения</th>
+            <th>Цена за единицу</th>
             <th>Действия</th>
           </tr>
         </thead>
         <tbody>
-          {employees.map(employee => (
-            <tr key={employee.id}>
-              <td>{employee.id}</td>
-              <td><strong>{employee.name}</strong></td>
-              <td>{employee.role || '-'}</td>
-              <td>{formatCurrency(employee.wage_per_hour)}</td>
-              <td>{employee.phone || '-'}</td>
+          {materials.map(material => (
+            <tr key={material.id}>
+              <td>{material.id}</td>
+              <td><strong>{material.name}</strong></td>
+              <td>{material.unit}</td>
+              <td>{formatCurrency(material.price_per_unit)}</td>
               <td>
                 <button 
                   className="btn btn-sm btn-outline-primary me-1"
-                  onClick={() => onEdit(employee)}
+                  onClick={() => onEdit(material)}
                   title="Редактировать"
                 >
                   ✏️
                 </button>
                 <button 
                   className="btn btn-sm btn-outline-danger"
-                  onClick={() => onDelete(employee.id)}
+                  onClick={() => onDelete(material.id)}
                   title="Удалить"
                 >
                   🗑️

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getProjects, createProject, updateProject, deleteProject, getProjectStats } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '../common';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import ProjectForm from '../ProjectForm';
-import ProjectList from '../ProjectList';
+import { ProjectForm } from '../forms';
+import { ProjectList } from '../lists';
 
 /**
  * Страница управления строительными объектами

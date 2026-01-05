@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import FormValidator from '../utils/formValidator';
-import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
-import { checkDuplicateByCombination } from '../utils/templates';
+import FormValidator from '../../utils/formValidator';
+import FormErrors, { FieldError, getFieldClasses } from '../common/FormErrors';
+import { checkDuplicateByCombination } from '../../utils/templates';
+import { getTodayDate } from '../../utils/formatters';
+
+/**
+ * Дефолтные значения формы рабочего времени (без даты, дата вычисляется динамически)
+ */
+const DEFAULT_WORK_LOG_FORM = {
+  employee_id: '',
+  project_id: '',
+  salary_per_day: 0,
+  notes: ''
+};
 
 /**
  * Форма для добавления/редактирования записи рабочего времени
  * С валидацией на клиенте и проверкой дублей
- * @param {Object} log - Запись для редактирования (если null - создание новой)
- * @param {Array} projects - Список проектов
- * @param {Array} employees - Список сотрудников
- * @param {Function} onSave - Обработчик сохранения
- * @param {Function} onCancel - Обработчик отмены
- * @param {Array} existingWorkLogs - Существующие записи для проверки дублей
+w * @param {Object} props - Пропсы компонента
+ * @param {Types.WorkLog|null} props.log - Запись для редактирования (если null - создание новой)
+ * @param {Types.Project[]} props.projects - Список проектов
+ * @param {Types.Employee[]} props.employees - Список сотрудников
+ * @param {Function} props.onSave - Обработчик сохранения
+ * @param {Function} props.onCancel - Обработчик отмены
+ * @param {Types.WorkLog[]} [props.existingWorkLogs=[]] - Существующие записи для проверки дублей
  */
 export default function WorkLogForm({ log, projects, employees, onSave, onCancel, existingWorkLogs = [] }) {
-  const [form, setForm] = useState({ 
-    employee_id: '', 
-    project_id: '', 
-    date: new Date().toISOString().split('T')[0],
-    salary_per_day: 0,
-    notes: ''
-  });
+  const [form, setForm] = useState({ ...DEFAULT_WORK_LOG_FORM, date: getTodayDate() });
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
 
@@ -29,18 +35,12 @@ export default function WorkLogForm({ log, projects, employees, onSave, onCancel
       setForm({
         employee_id: log.employee_id || '',
         project_id: log.project_id || '',
-        date: log.date || new Date().toISOString().split('T')[0],
+        date: log.date || getTodayDate(),
         salary_per_day: log.salary_per_day || 0,
         notes: log.notes || ''
       });
     } else {
-      setForm({ 
-        employee_id: '', 
-        project_id: '', 
-        date: new Date().toISOString().split('T')[0],
-        salary_per_day: 0,
-        notes: ''
-      });
+      setForm({ ...DEFAULT_WORK_LOG_FORM, date: getTodayDate() });
     }
   }, [log]);
 
@@ -172,7 +172,7 @@ export default function WorkLogForm({ log, projects, employees, onSave, onCancel
   return (
     <form className="card card-body mb-4 shadow-sm" style={{maxWidth: 800}} onSubmit={handleSubmit}>
       <h3 className="h5 mb-3">
-        {log ? '✏️ Редактировать запись' : '➕ Добавить учёт'}
+        {log ? '✏️ Редактировать запись' : '➕ Добавить смену'}
       </h3>
 
       <FormErrors errors={errors} generalError={generalError} />

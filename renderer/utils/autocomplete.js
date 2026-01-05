@@ -13,6 +13,7 @@ const MAX_HISTORY = 20;
  * Сохранить значение в историю автозаполнения
  * @param {string} fieldName - Имя поля
  * @param {string} value - Значение
+ * @returns {void}
  */
 export function saveToHistory(fieldName, value) {
   if (!value || !value.trim()) return;
@@ -36,7 +37,7 @@ export function saveToHistory(fieldName, value) {
 /**
  * Получить историю значений для поля
  * @param {string} fieldName - Имя поля
- * @returns {Array<string>} Массив значений
+ * @returns {string[]} Массив значений
  */
 export function getHistory(fieldName) {
   try {
@@ -53,8 +54,8 @@ export function getHistory(fieldName) {
  * Получить подсказки по введённому тексту
  * @param {string} fieldName - Имя поля
  * @param {string} input - Введённый текст
- * @param {number} limit - Максимальное количество подсказок
- * @returns {Array<string>} Массив подсказок
+ * @param {number} [limit=5] - Максимальное количество подсказок
+ * @returns {string[]} Массив подсказок
  */
 export function getSuggestions(fieldName, input, limit = 5) {
   if (!input || input.length < 2) return [];

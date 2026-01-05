@@ -3,7 +3,7 @@
  * Реализует паттерн Observer для управления уведомлениями
  * Следует принципам Single Responsibility и Open/Closed
  * 
- * @module renderer/components/NotificationSystem
+ * @module renderer/components/common/NotificationSystem
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
@@ -16,6 +16,26 @@ export const NotificationType = {
   ERROR: 'error',
   WARNING: 'warning',
   INFO: 'info'
+};
+
+/**
+ * Классы для типов уведомлений (вынесено за компонент для оптимизации)
+ */
+const NOTIFICATION_TYPE_CLASSES = {
+  [NotificationType.SUCCESS]: 'alert-success',
+  [NotificationType.ERROR]: 'alert-danger',
+  [NotificationType.WARNING]: 'alert-warning',
+  [NotificationType.INFO]: 'alert-info'
+};
+
+/**
+ * Иконки для типов уведомлений (вынесено за компонент для оптимизации)
+ */
+const NOTIFICATION_ICONS = {
+  [NotificationType.SUCCESS]: '✅',
+  [NotificationType.ERROR]: '❌',
+  [NotificationType.WARNING]: '⚠️',
+  [NotificationType.INFO]: 'ℹ️'
 };
 
 /**
@@ -155,8 +175,10 @@ function NotificationContainer() {
 
 /**
  * Компонент отдельного уведомления
- * @param {Object} notification - Данные уведомления
- * @param {Function} onClose - Обработчик закрытия
+ * @param {Object} props - Пропсы компонента
+ * @param {Types.Notification} props.notification - Данные уведомления
+ * @param {Function} props.onClose - Обработчик закрытия
+ * @param {string} [props.key] - Ключ React (не передается в компонент)
  */
 function Notification({ notification, onClose }) {
   const { message, type } = notification;
@@ -169,23 +191,11 @@ function Notification({ notification, onClose }) {
 
   const getNotificationClass = () => {
     const baseClass = 'alert alert-dismissible fade show shadow-sm mb-2';
-    const typeClasses = {
-      [NotificationType.SUCCESS]: 'alert-success',
-      [NotificationType.ERROR]: 'alert-danger',
-      [NotificationType.WARNING]: 'alert-warning',
-      [NotificationType.INFO]: 'alert-info'
-    };
-    return `${baseClass} ${typeClasses[type] || typeClasses[NotificationType.INFO]}`;
+    return `${baseClass} ${NOTIFICATION_TYPE_CLASSES[type] || NOTIFICATION_TYPE_CLASSES[NotificationType.INFO]}`;
   };
 
   const getIcon = () => {
-    const icons = {
-      [NotificationType.SUCCESS]: '✅',
-      [NotificationType.ERROR]: '❌',
-      [NotificationType.WARNING]: '⚠️',
-      [NotificationType.INFO]: 'ℹ️'
-    };
-    return icons[type] || icons[NotificationType.INFO];
+    return NOTIFICATION_ICONS[type] || NOTIFICATION_ICONS[NotificationType.INFO];
   };
 
   return (

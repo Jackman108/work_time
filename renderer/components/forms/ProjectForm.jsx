@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import FormValidator from '../utils/formValidator';
-import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
-import { saveToHistory, getSuggestions } from '../utils/autocomplete';
-import { getTemplates, saveTemplate, applyTemplate, checkDuplicates } from '../utils/templates';
+import FormValidator from '../../utils/formValidator';
+import FormErrors, { FieldError, getFieldClasses } from '../common/FormErrors';
+import { saveToHistory, getSuggestions } from '../../utils/autocomplete';
+import { getTemplates, saveTemplate, applyTemplate, checkDuplicates } from '../../utils/templates';
 
 /**
  * Форма для добавления/редактирования проекта
  * С валидацией на клиенте, автозаполнением и шаблонами
- * @param {Object} project - Проект для редактирования (если null - создание нового)
- * @param {Function} onSave - Обработчик сохранения
- * @param {Function} onCancel - Обработчик отмены
- * @param {Array} existingProjects - Существующие проекты для проверки дублей
+ * @param {Object} props - Пропсы компонента
+ * @param {Types.Project|null} [props.project] - Проект для редактирования (если null - создание нового)
+ * @param {Function} props.onSave - Обработчик сохранения
+ * @param {Function} props.onCancel - Обработчик отмены
+ * @param {Types.Project[]} [props.existingProjects=[]] - Существующие проекты для проверки дублей
  */
 export default function ProjectForm({ project, onSave, onCancel, existingProjects = [] }) {
   const [form, setForm] = useState({ 
@@ -378,3 +379,4 @@ export default function ProjectForm({ project, onSave, onCancel, existingProject
     </form>
   );
 }
+

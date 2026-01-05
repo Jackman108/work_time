@@ -5,8 +5,7 @@ import {
   getAllMaterialsReport, 
   getOverallStats 
 } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import { useNotifications, LoadingSpinner } from '../common';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 /**

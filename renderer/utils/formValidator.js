@@ -12,11 +12,12 @@
 class FormValidator {
   /**
    * Валидировать обязательные поля
-   * @param {Object} data - Данные для валидации
-   * @param {Array<string>} requiredFields - Список обязательных полей
-   * @returns {Object} { isValid: boolean, errors: Object }
+   * @param {Record<string, any>} data - Данные для валидации
+   * @param {string[]} requiredFields - Список обязательных полей
+   * @returns {Types.ValidationResult} Результат валидации
    */
   static validateRequired(data, requiredFields) {
+    /** @type {Record<string, string>} */
     const errors = {};
     
     requiredFields.forEach(field => {
@@ -35,10 +36,10 @@ class FormValidator {
 
   /**
    * Валидировать число
-   * @param {*} value - Значение для проверки
+   * @param {number|string} value - Значение для проверки
    * @param {string} fieldName - Имя поля
-   * @param {Object} options - Опции валидации
-   * @returns {Object} { isValid: boolean, error: string }
+   * @param {Types.NumberValidationOptions & { required?: boolean }} [options={}] - Опции валидации
+   * @returns {{ isValid: boolean, error: string|null }} Результат валидации
    */
   static validateNumber(value, fieldName, options = {}) {
     const {
@@ -81,10 +82,10 @@ class FormValidator {
 
   /**
    * Валидировать строку
-   * @param {*} value - Значение для проверки
+   * @param {string|number} value - Значение для проверки
    * @param {string} fieldName - Имя поля
-   * @param {Object} options - Опции валидации
-   * @returns {Object} { isValid: boolean, error: string }
+   * @param {Types.StringValidationOptions & { required?: boolean }} [options={}] - Опции валидации
+   * @returns {{ isValid: boolean, error: string|null }} Результат валидации
    */
   static validateString(value, fieldName, options = {}) {
     const {
@@ -221,11 +222,12 @@ class FormValidator {
 
   /**
    * Валидировать форму по правилам
-   * @param {Object} data - Данные формы
-   * @param {Object} rules - Правила валидации
-   * @returns {Object} { isValid: boolean, errors: Object }
+   * @param {Record<string, any>} data - Данные формы
+   * @param {Types.ValidationRules} rules - Правила валидации
+   * @returns {Types.ValidationResult} Результат валидации
    */
   static validateForm(data, rules) {
+    /** @type {Record<string, string>} */
     const errors = {};
 
     // Валидация обязательных полей
@@ -258,7 +260,7 @@ class FormValidator {
             break;
         }
 
-        if (result && !result.isValid) {
+        if (result && !result.isValid && result.error) {
           errors[fieldName] = result.error;
         }
       });
@@ -268,7 +270,7 @@ class FormValidator {
     if (rules.custom) {
       rules.custom.forEach(customRule => {
         const result = customRule.validator(data);
-        if (!result.isValid) {
+        if (!result.isValid && result.error) {
           errors[customRule.field] = result.error;
         }
       });

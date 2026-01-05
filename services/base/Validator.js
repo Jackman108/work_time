@@ -37,11 +37,11 @@ class Validator {
    * Валидировать числовое значение
    * @param {*} value - Значение для проверки
    * @param {string} fieldName - Имя поля (для сообщения об ошибке)
-   * @param {Object} options - Опции валидации
-   * @param {number} options.min - Минимальное значение
-   * @param {number} options.max - Максимальное значение
-   * @param {boolean} options.allowZero - Разрешить ноль
-   * @param {boolean} options.allowNegative - Разрешить отрицательные значения
+   * @param {Object} [options={}] - Опции валидации
+   * @param {number} [options.min] - Минимальное значение
+   * @param {number} [options.max] - Максимальное значение
+   * @param {boolean} [options.allowZero=true] - Разрешить ноль
+   * @param {boolean} [options.allowNegative=true] - Разрешить отрицательные значения
    * @returns {number} Валидированное числовое значение
    * @throws {ValidationError} Если значение невалидно
    */
@@ -83,10 +83,10 @@ class Validator {
    * Валидировать строку
    * @param {*} value - Значение для проверки
    * @param {string} fieldName - Имя поля
-   * @param {Object} options - Опции валидации
-   * @param {number} options.minLength - Минимальная длина
-   * @param {number} options.maxLength - Максимальная длина
-   * @param {RegExp} options.pattern - Регулярное выражение для проверки
+   * @param {Object} [options={}] - Опции валидации
+   * @param {number} [options.minLength] - Минимальная длина
+   * @param {number} [options.maxLength] - Максимальная длина
+   * @param {RegExp} [options.pattern] - Регулярное выражение для проверки
    * @returns {string} Валидированная строка
    * @throws {ValidationError} Если значение невалидно
    */

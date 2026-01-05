@@ -1,42 +1,32 @@
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { NotificationProvider } from './components/NotificationSystem';
-import Navigation from './components/Navigation.jsx';
-import ProjectsPage from './components/pages/ProjectsPage.jsx';
-import EmployeesPage from './components/pages/EmployeesPage.jsx';
-import MaterialsPage from './components/pages/MaterialsPage.jsx';
-import WorkLogPage from './components/pages/WorkLogPage.jsx';
-import MaterialLogPage from './components/pages/MaterialLogPage.jsx';
-import PayrollPage from './components/pages/PayrollPage.jsx';
-import ReportsPage from './components/pages/ReportsPage.jsx';
+import { NotificationProvider, Navigation } from './components/common';
+import { getRouteComponent, routeExists } from './router';
+import { ROUTES } from './constants';
 
 /**
  * Главный компонент приложения
  * Управляет навигацией между разделами и отображением соответствующих страниц
+ * Использует централизованный роутер для управления маршрутами
+ * Следует принципам Single Responsibility и Open/Closed
  */
 export default function App() {
-  const [activeTab, setActiveTab] = useState('projects');
+  const [activeTab, setActiveTab] = useState(ROUTES.PROJECTS);
 
-  // Рендерим активную страницу в зависимости от выбранного раздела
+  /**
+   * Рендерим активную страницу в зависимости от выбранного раздела
+   * Использует централизованный роутер вместо switch
+   */
   const renderPage = () => {
-    switch (activeTab) {
-      case 'projects':
-        return <ProjectsPage />;
-      case 'employees':
-        return <EmployeesPage />;
-      case 'materials':
-        return <MaterialsPage />;
-      case 'work-log':
-        return <WorkLogPage />;
-      case 'material-log':
-        return <MaterialLogPage />;
-      case 'payroll':
-        return <PayrollPage />;
-      case 'reports':
-        return <ReportsPage />;
-      default:
-        return <ProjectsPage />;
+    // Проверяем существование маршрута
+    if (!routeExists(activeTab)) {
+      console.warn(`Маршрут ${activeTab} не найден, используем маршрут по умолчанию`);
+      const PageComponent = getRouteComponent(ROUTES.PROJECTS);
+      return PageComponent ? <PageComponent /> : null;
     }
+
+    const PageComponent = getRouteComponent(activeTab);
+    return PageComponent ? <PageComponent /> : null;
   };
 
   return (

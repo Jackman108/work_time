@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '../common';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import EmployeeForm from '../EmployeeForm';
-import EmployeeList from '../EmployeeList';
+import { EmployeeForm } from '../forms';
+import { EmployeeList } from '../lists';
 
 /**
  * Страница управления сотрудниками

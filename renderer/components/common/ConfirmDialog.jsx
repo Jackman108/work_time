@@ -3,30 +3,59 @@
  * Заменяет устаревший window.confirm
  * Следует принципам Single Responsibility и лучшим практикам UX
  * 
- * @module renderer/components/ConfirmDialog
+ * @module renderer/components/common/ConfirmDialog
  */
 
 import React from 'react';
 
 /**
+ * Дефолтные значения для диалога подтверждения
+ */
+const DEFAULT_DIALOG_VALUES = {
+  title: 'Подтверждение',
+  message: 'Вы уверены?',
+  confirmText: 'Да',
+  cancelText: 'Отмена',
+  type: 'warning'
+};
+
+/**
+ * Классы кнопок по типам диалога (вынесено за компонент для оптимизации)
+ */
+const DIALOG_BUTTON_CLASSES = {
+  danger: 'btn-danger',
+  warning: 'btn-warning',
+  info: 'btn-info'
+};
+
+/**
+ * Иконки по типам диалога (вынесено за компонент для оптимизации)
+ */
+const DIALOG_ICONS = {
+  danger: '⚠️',
+  warning: '⚠️',
+  info: 'ℹ️'
+};
+
+/**
  * Диалог подтверждения
  * @param {Object} props - Свойства компонента
- * @param {boolean} props.show - Показывать ли диалог
- * @param {string} props.title - Заголовок диалога
- * @param {string} props.message - Сообщение диалога
- * @param {string} props.confirmText - Текст кнопки подтверждения
- * @param {string} props.cancelText - Текст кнопки отмены
- * @param {string} props.type - Тип диалога (danger, warning, info)
+ * @param {boolean} [props.show=false] - Показывать ли диалог
+ * @param {string} [props.title] - Заголовок диалога
+ * @param {string} [props.message] - Сообщение диалога
+ * @param {string} [props.confirmText] - Текст кнопки подтверждения
+ * @param {string} [props.cancelText] - Текст кнопки отмены
+ * @param {string} [props.type] - Тип диалога (danger, warning, info)
  * @param {Function} props.onConfirm - Обработчик подтверждения
  * @param {Function} props.onCancel - Обработчик отмены
  */
 export default function ConfirmDialog({
   show = false,
-  title = 'Подтверждение',
-  message = 'Вы уверены?',
-  confirmText = 'Да',
-  cancelText = 'Отмена',
-  type = 'warning',
+  title = DEFAULT_DIALOG_VALUES.title,
+  message = DEFAULT_DIALOG_VALUES.message,
+  confirmText = DEFAULT_DIALOG_VALUES.confirmText,
+  cancelText = DEFAULT_DIALOG_VALUES.cancelText,
+  type = DEFAULT_DIALOG_VALUES.type,
   onConfirm,
   onCancel
 }) {
@@ -35,21 +64,11 @@ export default function ConfirmDialog({
   }
 
   const getButtonClass = () => {
-    const classes = {
-      danger: 'btn-danger',
-      warning: 'btn-warning',
-      info: 'btn-info'
-    };
-    return classes[type] || classes.warning;
+    return DIALOG_BUTTON_CLASSES[type] || DIALOG_BUTTON_CLASSES.warning;
   };
 
   const getIcon = () => {
-    const icons = {
-      danger: '⚠️',
-      warning: '⚠️',
-      info: 'ℹ️'
-    };
-    return icons[type] || icons.warning;
+    return DIALOG_ICONS[type] || DIALOG_ICONS.warning;
   };
 
   return (
@@ -109,24 +128,20 @@ export default function ConfirmDialog({
 export function useConfirmDialog() {
   const [dialogState, setDialogState] = React.useState({
     show: false,
-    title: 'Подтверждение',
-    message: 'Вы уверены?',
-    confirmText: 'Да',
-    cancelText: 'Отмена',
-    type: 'warning',
+    ...DEFAULT_DIALOG_VALUES,
     onConfirm: null,
     onCancel: null
   });
 
-  const showConfirm = React.useCallback((options) => {
+  const showConfirm = React.useCallback((options = {}) => {
     return new Promise((resolve, reject) => {
       setDialogState({
         show: true,
-        title: options.title || 'Подтверждение',
-        message: options.message || 'Вы уверены?',
-        confirmText: options.confirmText || 'Да',
-        cancelText: options.cancelText || 'Отмена',
-        type: options.type || 'warning',
+        title: options.title ?? DEFAULT_DIALOG_VALUES.title,
+        message: options.message ?? DEFAULT_DIALOG_VALUES.message,
+        confirmText: options.confirmText ?? DEFAULT_DIALOG_VALUES.confirmText,
+        cancelText: options.cancelText ?? DEFAULT_DIALOG_VALUES.cancelText,
+        type: options.type ?? DEFAULT_DIALOG_VALUES.type,
         onConfirm: () => {
           setDialogState(prev => ({ ...prev, show: false }));
           resolve(true);

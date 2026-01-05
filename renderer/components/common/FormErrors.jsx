@@ -4,9 +4,11 @@ import React from 'react';
  * Компонент для отображения ошибок валидации формы
  * Визуальная индикация ошибок с поддержкой полей и общих ошибок
  * 
- * @param {Object} errors - Объект с ошибками { fieldName: 'error message' }
- * @param {string} generalError - Общая ошибка формы
- * @param {Function} onDismiss - Обработчик закрытия ошибки
+ * @module renderer/components/common/FormErrors
+ * @param {Object} props - Пропсы компонента
+ * @param {Object} [props.errors={}] - Объект с ошибками { fieldName: 'error message' }
+ * @param {string|null} [props.generalError=null] - Общая ошибка формы
+ * @param {Function|null} [props.onDismiss=null] - Обработчик закрытия ошибки
  */
 export default function FormErrors({ errors = {}, generalError = null, onDismiss = null }) {
   const hasErrors = Object.keys(errors).length > 0 || generalError;
@@ -50,8 +52,10 @@ export default function FormErrors({ errors = {}, generalError = null, onDismiss
 /**
  * Компонент для отображения ошибки конкретного поля
  * 
- * @param {string} error - Текст ошибки
- * @param {boolean} show - Показывать ли ошибку
+ * @param {Object} props - Пропсы компонента
+ * @param {string|null} props.error - Текст ошибки
+ * @param {boolean} [props.show=false] - Показывать ли ошибку
+ * @returns {React.ReactElement|null} Элемент ошибки или null
  */
 export function FieldError({ error, show = false }) {
   if (!show || !error) {

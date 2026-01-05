@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../../utils/formatters';
 
 /**
  * Список всех строительных объектов с возможностью редактирования и удаления

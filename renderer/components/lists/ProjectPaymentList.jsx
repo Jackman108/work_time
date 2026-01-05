@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../../utils/formatters';
 
 /**
  * Список записей поступлений денег на проекты

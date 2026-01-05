@@ -12,7 +12,7 @@ const MAX_TEMPLATES = 50;
 /**
  * Получить все шаблоны
  * @param {string} formType - Тип формы (projects, employees, materials, etc.)
- * @returns {Array} Массив шаблонов
+ * @returns {Array<{ name: string, data: Record<string, any>, createdAt: string }>} Массив шаблонов
  */
 export function getTemplates(formType) {
   try {
@@ -29,7 +29,8 @@ export function getTemplates(formType) {
  * Сохранить шаблон
  * @param {string} formType - Тип формы
  * @param {string} name - Название шаблона
- * @param {Object} data - Данные шаблона
+ * @param {Record<string, any>} data - Данные шаблона
+ * @returns {void}
  */
 export function saveTemplate(formType, name, data) {
   try {
@@ -55,7 +56,7 @@ export function saveTemplate(formType, name, data) {
     // Ограничиваем количество шаблонов
     if (allTemplates[formType].length > MAX_TEMPLATES) {
       allTemplates[formType] = allTemplates[formType]
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, MAX_TEMPLATES);
     }
 
@@ -90,7 +91,7 @@ export function deleteTemplate(formType, name) {
  * Применить шаблон к форме
  * @param {string} formType - Тип формы
  * @param {string} name - Название шаблона
- * @returns {Object|null} Данные шаблона или null
+ * @returns {Record<string, any>|null} Данные шаблона или null
  */
 export function applyTemplate(formType, name) {
   try {
@@ -106,11 +107,11 @@ export function applyTemplate(formType, name) {
 /**
  * Проверить наличие дублей
  * @param {string} formType - Тип формы
- * @param {Object} data - Данные для проверки
- * @param {Array} existingItems - Существующие элементы
- * @param {Array<string>} fieldsToCheck - Поля для проверки на дубли
- * @param {number} excludeId - ID записи для исключения (при обновлении)
- * @returns {Object} { hasDuplicate: boolean, duplicateField: string, message: string }
+ * @param {Record<string, any>} data - Данные для проверки
+ * @param {Array<Record<string, any>>} existingItems - Существующие элементы
+ * @param {string[]} fieldsToCheck - Поля для проверки на дубли
+ * @param {number|null} [excludeId=null] - ID записи для исключения (при обновлении)
+ * @returns {{ hasDuplicate: boolean, duplicateField?: string, message?: string }} Результат проверки
  */
 export function checkDuplicates(formType, data, existingItems, fieldsToCheck, excludeId = null) {
   if (!existingItems || existingItems.length === 0) {
@@ -153,11 +154,11 @@ export function checkDuplicates(formType, data, existingItems, fieldsToCheck, ex
 /**
  * Проверить наличие дубля по комбинации полей
  * Используется для проверки уникальности комбинации нескольких полей
- * @param {Object} data - Данные для проверки
- * @param {Array} existingItems - Существующие элементы
- * @param {Array<string>} fieldsToCheck - Поля для проверки комбинации
- * @param {number} excludeId - ID записи для исключения (при обновлении)
- * @returns {Object} { hasDuplicate: boolean, message: string }
+ * @param {Record<string, any>} data - Данные для проверки
+ * @param {Array<Record<string, any>>} existingItems - Существующие элементы
+ * @param {string[]} fieldsToCheck - Поля для проверки комбинации
+ * @param {number|null} [excludeId=null] - ID записи для исключения (при обновлении)
+ * @returns {{ hasDuplicate: boolean, message?: string }} Результат проверки
  */
 export function checkDuplicateByCombination(data, existingItems, fieldsToCheck, excludeId = null) {
   if (!existingItems || existingItems.length === 0) {

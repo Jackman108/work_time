@@ -24,3 +24,11 @@ export function formatDate(date) {
   return new Date(date).toLocaleDateString('ru-RU');
 }
 
+/**
+ * Получает текущую дату в формате YYYY-MM-DD
+ * @returns {string} Текущая дата в формате YYYY-MM-DD
+ */
+export function getTodayDate() {
+  return new Date().toISOString().split('T')[0];
+}
+

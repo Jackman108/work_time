@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getProjectPayments, createProjectPayment, updateProjectPayment, deleteProjectPayment, getProjects } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '../common';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import ProjectPaymentForm from '../ProjectPaymentForm';
-import ProjectPaymentList from '../ProjectPaymentList';
+import { ProjectPaymentForm } from '../forms';
+import { ProjectPaymentList } from '../lists';
 
 /**
  * Страница учёта поступлений денег на проекты

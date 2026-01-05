@@ -108,12 +108,59 @@ function updateMaterial(id, data) {
  * @param {number} id - ID материала
  * @returns {boolean} Успешно ли удалён
  * @throws {NotFoundError} Если материал не найден
+ * @throws {Error} Если материал используется в записях списания
  */
 function deleteMaterial(id) {
   if (!materialsRepository.exists(id)) {
     throw new NotFoundError(`Материал с ID ${id} не найден`);
   }
-  return materialsRepository.delete(id);
+
+  // Проверяем, используется ли материал в записях списания
+  const materialLogCount = db.prepare(`
+    SELECT COUNT(*) as count 
+    FROM material_log 
+    WHERE material_id = ?
+  `).get(id);
+
+  if (materialLogCount && materialLogCount.count > 0) {
+    throw new Error(
+      `Невозможно удалить материал: он используется в ${materialLogCount.count} записях списания материалов. ` +
+      `Сначала удалите или измените эти записи.`
+    );
+  }
+
+  // Используем транзакцию для безопасного удаления
+  // Хотя в БД настроено ON DELETE CASCADE, явно удаляем связанные записи для надёжности
+  const deleteTransaction = db.transaction(() => {
+    // Сначала удаляем связанные записи (на случай, если CASCADE не сработает)
+    db.prepare('DELETE FROM material_log WHERE material_id = ?').run(id);
+    
+    // Затем удаляем сам материал
+    const result = materialsRepository.delete(id);
+    
+    if (!result) {
+      throw new NotFoundError(`Материал с ID ${id} не найден`);
+    }
+    
+    return true;
+  });
+
+  try {
+    return deleteTransaction();
+  } catch (error) {
+    // Если ошибка связана с внешним ключом или другими ограничениями БД
+    if (error.message && (
+      error.message.includes('FOREIGN KEY') || 
+      error.message.includes('constraint') ||
+      error.message.includes('SQLITE_CONSTRAINT')
+    )) {
+      throw new Error(
+        'Невозможно удалить материал: он используется в записях списания материалов. ' +
+        'Сначала удалите или измените эти записи.'
+      );
+    }
+    throw error;
+  }
 }
 
 /**

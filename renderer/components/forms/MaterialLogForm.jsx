@@ -1,24 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import FormValidator from '../utils/formValidator';
-import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
+import FormValidator from '../../utils/formValidator';
+import FormErrors, { FieldError, getFieldClasses } from '../common/FormErrors';
+import { getTodayDate } from '../../utils/formatters';
+
+/**
+ * Дефолтные значения формы списания материалов (без даты, дата вычисляется динамически)
+ */
+const DEFAULT_MATERIAL_LOG_FORM = {
+  material_id: '',
+  project_id: '',
+  amount: 0,
+  notes: ''
+};
 
 /**
  * Форма для добавления/редактирования записи списания материалов
  * С валидацией на клиенте
- * @param {Object} log - Запись для редактирования (если null - создание новой)
- * @param {Array} materials - Список материалов
- * @param {Array} projects - Список проектов
- * @param {Function} onSave - Обработчик сохранения
- * @param {Function} onCancel - Обработчик отмены
+ * @param {Object} props - Пропсы компонента
+ * @param {Types.MaterialLog|null} [props.log] - Запись для редактирования (если null - создание новой)
+ * @param {Types.Material[]} props.materials - Список материалов
+ * @param {Types.Project[]} props.projects - Список проектов
+ * @param {Function} props.onSave - Обработчик сохранения
+ * @param {Function} props.onCancel - Обработчик отмены
  */
 export default function MaterialLogForm({ log, materials, projects, onSave, onCancel }) {
-  const [form, setForm] = useState({ 
-    material_id: '', 
-    project_id: '', 
-    date: new Date().toISOString().split('T')[0],
-    amount: 0,
-    notes: ''
-  });
+  const [form, setForm] = useState({ ...DEFAULT_MATERIAL_LOG_FORM, date: getTodayDate() });
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
 
@@ -27,18 +33,12 @@ export default function MaterialLogForm({ log, materials, projects, onSave, onCa
       setForm({
         material_id: log.material_id || '',
         project_id: log.project_id || '',
-        date: log.date || new Date().toISOString().split('T')[0],
+        date: log.date || getTodayDate(),
         amount: log.amount || 0,
         notes: log.notes || ''
       });
     } else {
-      setForm({ 
-        material_id: '', 
-        project_id: '', 
-        date: new Date().toISOString().split('T')[0],
-        amount: 0,
-        notes: ''
-      });
+      setForm({ ...DEFAULT_MATERIAL_LOG_FORM, date: getTodayDate() });
     }
   }, [log]);
 
@@ -151,7 +151,7 @@ export default function MaterialLogForm({ log, materials, projects, onSave, onCa
           >
             <option value="">Выберите проект</option>
             {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}              </option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
           <FieldError error={errors.project_id} show={!!errors.project_id} />

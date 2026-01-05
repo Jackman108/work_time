@@ -4,24 +4,19 @@
  * Следует принципам DRY и Single Responsibility
  * 
  * @module renderer/hooks/useAsyncOperation
+ * @see {@link types/index.d.ts} для определений типов
  */
 
 import { useState, useCallback } from 'react';
-import { useNotifications } from '../components/NotificationSystem';
+import { useNotifications } from '../components/common';
 
 /**
  * Хук для обработки асинхронных операций
  * Автоматически управляет состоянием загрузки и ошибок
  * Показывает уведомления об успехе/ошибке
  * 
- * @param {Object} options - Опции хука
- * @param {Function} options.onSuccess - Обработчик успешного выполнения
- * @param {Function} options.onError - Обработчик ошибки
- * @param {boolean} options.showSuccessNotification - Показывать ли уведомление об успехе
- * @param {boolean} options.showErrorNotification - Показывать ли уведомление об ошибке
- * @param {string} options.successMessage - Сообщение об успехе
- * @param {string} options.errorMessage - Сообщение об ошибке (по умолчанию)
- * @returns {Object} { execute, loading, error }
+ * @param {Types.UseAsyncOperationOptions} [options={}] - Опции хука
+ * @returns {Types.UseAsyncOperationReturn} Результат хука
  */
 export function useAsyncOperation(options = {}) {
   const {
@@ -40,8 +35,12 @@ export function useAsyncOperation(options = {}) {
   /**
    * Выполнить асинхронную операцию
    * @param {Function} asyncFn - Асинхронная функция для выполнения
-   * @param {Object} operationOptions - Опции для конкретной операции
-   * @returns {Promise} Результат выполнения
+   * @param {Object} [operationOptions={}] - Опции для конкретной операции
+   * @param {boolean} [operationOptions.showSuccessNotification] - Показывать уведомление об успехе
+   * @param {boolean} [operationOptions.showErrorNotification] - Показывать уведомление об ошибке
+   * @param {string|Function} [operationOptions.successMessage] - Сообщение об успехе или функция для получения сообщения
+   * @param {string|Function} [operationOptions.errorMessage] - Сообщение об ошибке или функция для получения сообщения
+   * @returns {Promise<*>} Результат выполнения
    */
   const execute = useCallback(async (asyncFn, operationOptions = {}) => {
     if (!asyncFn || typeof asyncFn !== 'function') {
@@ -71,7 +70,14 @@ export function useAsyncOperation(options = {}) {
 
       return result;
     } catch (err) {
-      const errorMessageToShow = err.message || operationOptions.errorMessage || errorMessage;
+      // Определяем сообщение об ошибке
+      let errorMessageToShow;
+      if (typeof operationOptions.errorMessage === 'function') {
+        errorMessageToShow = operationOptions.errorMessage(err) || err.message || errorMessage;
+      } else {
+        errorMessageToShow = err.message || operationOptions.errorMessage || errorMessage;
+      }
+      
       setError(err);
 
       // Вызываем обработчик ошибки, если он есть

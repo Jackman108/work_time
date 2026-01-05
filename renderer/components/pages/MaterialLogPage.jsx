@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getMaterialLogs, createMaterialLog, updateMaterialLog, deleteMaterialLog, getProjects, getMaterials } from '../../api';
-import { useNotifications } from '../../components/NotificationSystem';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '../common';
 import { useAsyncOperation } from '../../hooks/useAsyncOperation';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import MaterialLogForm from '../MaterialLogForm';
-import MaterialLogList from '../MaterialLogList';
+import { MaterialLogForm } from '../forms';
+import { MaterialLogList } from '../lists';
 
 /**
  * Страница учёта списания материалов на проекты

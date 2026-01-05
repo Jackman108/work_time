@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import FormValidator from '../utils/formValidator';
-import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
-import { saveToHistory, getSuggestions } from '../utils/autocomplete';
-import { getTemplates, saveTemplate, applyTemplate, checkDuplicates } from '../utils/templates';
+import FormValidator from '../../utils/formValidator';
+import FormErrors, { FieldError, getFieldClasses } from '../common/FormErrors';
+import { saveToHistory, getSuggestions } from '../../utils/autocomplete';
+import { getTemplates, saveTemplate, applyTemplate, checkDuplicates } from '../../utils/templates';
 
 /**
  * Форма для добавления/редактирования материала
  * С валидацией на клиенте, автозаполнением и шаблонами
+ * @param {Object} props - Пропсы компонента
+ * @param {Types.Material|null} [props.material] - Материал для редактирования (если null - создание нового)
+ * @param {Function} props.onSave - Обработчик сохранения
+ * @param {Function} props.onCancel - Обработчик отмены
+ * @param {Types.Material[]} [props.existingMaterials=[]] - Существующие материалы для проверки дублей
  */
 export default function MaterialForm({ material, onSave, onCancel, existingMaterials = [] }) {
   const [form, setForm] = useState({ 
@@ -276,3 +281,4 @@ export default function MaterialForm({ material, onSave, onCancel, existingMater
     </form>
   );
 }
+

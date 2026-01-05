@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import FormValidator from '../utils/formValidator';
-import FormErrors, { FieldError, getFieldClasses } from './FormErrors';
+import FormValidator from '../../utils/formValidator';
+import FormErrors, { FieldError, getFieldClasses } from '../common/FormErrors';
+import { getTodayDate } from '../../utils/formatters';
+
+/**
+ * Дефолтные значения формы поступления денег (без даты, дата вычисляется динамически)
+ */
+const DEFAULT_PAYMENT_FORM = {
+  project_id: '',
+  amount: 0,
+  notes: ''
+};
 
 /**
  * Форма для добавления/редактирования записи поступления денег на проект
  * С валидацией на клиенте
+ * @param {Object} props - Пропсы компонента
+ * @param {Types.ProjectPayment|null} [props.payment] - Запись для редактирования (если null - создание новой)
+ * @param {Types.Project[]} props.projects - Список проектов
+ * @param {Function} props.onSave - Обработчик сохранения
+ * @param {Function} props.onCancel - Обработчик отмены
  */
 export default function ProjectPaymentForm({ payment, projects, onSave, onCancel }) {
-  const [form, setForm] = useState({ 
-    project_id: '', 
-    date: new Date().toISOString().split('T')[0],
-    amount: 0,
-    notes: ''
-  });
+  const [form, setForm] = useState({ ...DEFAULT_PAYMENT_FORM, date: getTodayDate() });
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
 
@@ -20,17 +30,12 @@ export default function ProjectPaymentForm({ payment, projects, onSave, onCancel
     if (payment) {
       setForm({
         project_id: payment.project_id || '',
-        date: payment.date || new Date().toISOString().split('T')[0],
+        date: payment.date || getTodayDate(),
         amount: payment.amount || 0,
         notes: payment.notes || ''
       });
     } else {
-      setForm({ 
-        project_id: '', 
-        date: new Date().toISOString().split('T')[0],
-        amount: 0,
-        notes: ''
-      });
+      setForm({ ...DEFAULT_PAYMENT_FORM, date: getTodayDate() });
     }
   }, [payment]);
 
