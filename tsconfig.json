@@ -7,7 +7,11 @@
     "checkJs": true,
     "allowJs": true,
     "noEmit": true,
-    "strict": false,
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -17,11 +21,23 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@types/*": ["./types/*"]
+      "@types/*": ["./types/*"],
+      "types": ["./types"]
     },
     "typeRoots": ["./types", "./node_modules/@types"],
-    "types": []
+    "types": ["node"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   },
-  "include": ["**/*.js", "**/*.jsx", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "db"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    "types/**/*.d.ts",
+    "types/index.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", "dist-main", "db", "release"],
+  "files": ["types/index.d.ts"]
 }

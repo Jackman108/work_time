@@ -1,531 +1,472 @@
 /**
  * Типы для приложения Builder Manager
- * Централизованные определения типов для всего приложения
- * 
- * @module types
+ * Определения типов для TypeScript через JSDoc
  */
 
-declare namespace Types {
-    // ========== Базовые типы ==========
+// Экспортируем типы из других модулей
+export * from './config';
+export * from './ipc-channels';
+export * from './database-schema';
 
-    /**
-     * Базовая сущность с ID и временными метками
-     */
-    interface BaseEntity {
-        id: number;
-        created_at?: string;
-        updated_at?: string;
-    }
+/**
+ * Базовые типы данных
+ */
+export namespace Types {
+  /**
+   * Проект (строительный объект)
+   */
+  export interface Project {
+    id: number;
+    name: string;
+    address: string | null;
+    budget: number;
+    start_date: string | null;
+    end_date: string | null;
+    description: string | null;
+    created_at: string;
+    updated_at: string;
+  }
 
-    // ========== Проекты ==========
+  /**
+   * Данные для создания проекта
+   */
+  export interface ProjectCreateData {
+    name: string;
+    address: string;
+    budget: number;
+    start_date: string | null;
+    end_date: string | null;
+    description?: string | null;
+  }
 
-    /**
-     * Проект (строительный объект)
-     */
-    interface Project extends BaseEntity {
-        name: string;
-        address?: string;
-        date_start?: string;
-        date_end?: string;
-        budget?: number;
-    }
+  /**
+   * Данные для обновления проекта
+   */
+  export interface ProjectUpdateData extends Partial<ProjectCreateData> { }
 
-    /**
-     * Статистика по проекту
-     */
-    interface ProjectStats {
-        totalCosts: number;
-        salaryCosts: number;
-        materialCosts: number;
-        paymentsReceived: number;
-    }
+  /**
+   * Сотрудник
+   */
+  export interface Employee {
+    id: number;
+    name: string;
+    phone: string | null;
+    position: string | null;
+    hire_date: string | null;
+    salary_per_day: number | null;
+    created_at: string;
+    updated_at: string;
+  }
 
-    /**
-     * Данные для создания проекта
-     */
-    interface ProjectCreateData {
-        name: string;
-        address?: string;
-        date_start?: string;
-        date_end?: string;
-        budget?: number;
-    }
+  /**
+   * Данные для создания сотрудника
+   */
+  export interface EmployeeCreateData {
+    name: string;
+    phone: string;
+    position: string;
+    hire_date?: string | null;
+    salary_per_day?: number | null;
+  }
 
-    /**
-     * Данные для обновления проекта
-     */
-    interface ProjectUpdateData {
-        name?: string;
-        address?: string;
-        date_start?: string;
-        date_end?: string;
-        budget?: number;
-    }
+  /**
+   * Данные для обновления сотрудника
+   */
+  export interface EmployeeUpdateData extends Partial<EmployeeCreateData> { }
 
-    // ========== Сотрудники ==========
+  /**
+   * Материал
+   */
+  export interface Material {
+    id: number;
+    name: string;
+    unit: string;
+    price_per_unit: number;
+    created_at: string;
+    updated_at: string;
+  }
 
-    /**
-     * Сотрудник
-     */
-    interface Employee extends BaseEntity {
-        name: string;
-        role?: string;
-        wage_per_hour?: number;
-        phone?: string;
-    }
+  /**
+   * Данные для создания материала
+   */
+  export interface MaterialCreateData {
+    name: string;
+    unit: string;
+    price_per_unit: number;
+  }
 
-    /**
-     * Статистика по сотруднику
-     */
-    interface EmployeeStats {
-        days_worked: number;
-        total_salary: number;
-        projects_count: number;
-    }
+  /**
+   * Данные для обновления материала
+   */
+  export interface MaterialUpdateData extends Partial<MaterialCreateData> { }
 
-    /**
-     * Данные для создания сотрудника
-     */
-    interface EmployeeCreateData {
-        name: string;
-        role?: string;
-        wage_per_hour?: number;
-        phone?: string;
-    }
+  /**
+   * Фильтры для учёта рабочего времени
+   */
+  export interface WorkLogFilters {
+    project_id?: number | null;
+    employee_id?: number | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  }
 
-    /**
-     * Данные для обновления сотрудника
-     */
-    interface EmployeeUpdateData {
-        name?: string;
-        role?: string;
-        wage_per_hour?: number;
-        phone?: string;
-    }
+  /**
+   * Фильтры для учёта списания материалов
+   */
+  export interface MaterialLogFilters {
+    project_id?: number | null;
+    material_id?: number | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  }
 
-    // ========== Материалы ==========
+  /**
+   * Фильтры для платежей по проектам
+   */
+  export interface ProjectPaymentFilters {
+    project_id?: number | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  }
 
-    /**
-     * Материал
-     */
-    interface Material extends BaseEntity {
-        name: string;
-        unit?: string;
-        price_per_unit?: number;
-    }
+  /**
+   * Запись рабочего времени
+   */
+  export interface WorkLog {
+    id: number;
+    employee_id: number;
+    project_id: number;
+    date: string;
+    salary_per_day: number;
+    notes?: string | null;
+    created_at: string;
+    // Joined fields
+    employee_name?: string;
+    project_name?: string;
+  }
 
-    /**
-     * Статистика по материалу
-     */
-    interface MaterialStats {
-        total_amount: number;
-        total_cost: number;
-        projects_count: number;
-    }
+  /**
+   * Данные для создания записи рабочего времени
+   */
+  export interface WorkLogCreateData {
+    employee_id: number;
+    project_id: number;
+    date: string;
+    salary_per_day: number;
+    notes?: string | null;
+  }
 
-    /**
-     * Данные для создания материала
-     */
-    interface MaterialCreateData {
-        name: string;
-        unit?: string;
-        price_per_unit?: number;
-    }
+  /**
+   * Данные для обновления записи рабочего времени
+   */
+  export interface WorkLogUpdateData extends Partial<WorkLogCreateData> { }
 
-    /**
-     * Данные для обновления материала
-     */
-    interface MaterialUpdateData {
-        name?: string;
-        unit?: string;
-        price_per_unit?: number;
-    }
+  /**
+   * Запись списания материала
+   */
+  export interface MaterialLog {
+    id: number;
+    project_id: number;
+    material_id: number;
+    date: string;
+    amount: number;
+    notes?: string | null;
+    created_at: string;
+    // Joined fields
+    material_name?: string;
+    project_name?: string;
+    unit?: string;
+    price_per_unit?: number;
+  }
 
-    // ========== Учёт рабочего времени ==========
+  /**
+   * Данные для создания записи списания материала
+   */
+  export interface MaterialLogCreateData {
+    project_id: number;
+    material_id: number;
+    date: string;
+    amount: number;
+    notes?: string | null;
+  }
 
-    /**
-     * Запись рабочего времени
-     */
-    interface WorkLog extends BaseEntity {
-        employee_id: number;
-        project_id: number;
-        date: string;
-        salary_per_day: number;
-        notes?: string;
-        employee_name?: string;
-        employee_role?: string;
-        project_name?: string;
-    }
+  /**
+   * Данные для обновления записи списания материала
+   */
+  export interface MaterialLogUpdateData extends Partial<MaterialLogCreateData> { }
 
-    /**
-     * Данные для создания записи рабочего времени
-     */
-    interface WorkLogCreateData {
-        employee_id: number;
-        project_id: number;
-        date: string;
-        salary_per_day: number;
-        notes?: string;
-    }
+  /**
+   * Платёж по проекту
+   */
+  export interface ProjectPayment {
+    id: number;
+    project_id: number;
+    date: string;
+    amount: number;
+    description?: string | null;
+    notes?: string | null;
+    created_at: string;
+    // Joined fields
+    project_name?: string;
+  }
 
-    /**
-     * Данные для обновления записи рабочего времени
-     */
-    interface WorkLogUpdateData {
-        employee_id?: number;
-        project_id?: number;
-        date?: string;
-        salary_per_day?: number;
-        notes?: string;
-    }
+  /**
+   * Данные для создания платежа по проекту
+   */
+  export interface ProjectPaymentCreateData {
+    project_id: number;
+    date: string;
+    amount: number;
+    description?: string | null;
+    notes?: string | null;
+  }
 
-    /**
-     * Фильтры для записей рабочего времени
-     */
-    interface WorkLogFilters {
-        projectId?: number;
-        employeeId?: number;
-        dateFrom?: string;
-        dateTo?: string;
-    }
+  /**
+   * Данные для обновления платежа по проекту
+   */
+  export interface ProjectPaymentUpdateData extends Partial<ProjectPaymentCreateData> { }
 
-    // ========== Учёт списания материалов ==========
+  /**
+   * Ошибки валидации формы
+   */
+  export interface FormErrors {
+    [fieldName: string]: string;
+  }
 
-    /**
-     * Запись списания материалов
-     */
-    interface MaterialLog extends BaseEntity {
-        material_id: number;
-        project_id: number;
-        date: string;
-        amount: number;
-        notes?: string;
-        material_name?: string;
-        material_unit?: string;
-        material_price?: number;
-        total_cost?: number;
-        project_name?: string;
-    }
+  /**
+   * Ответ от API
+   */
+  export interface ApiResponse {
+    success: boolean;
+    data?: any;
+    error?: string | { message: string };
+  }
 
-    /**
-     * Данные для создания записи списания материалов
-     */
-    interface MaterialLogCreateData {
-        material_id: number;
-        project_id: number;
-        date: string;
-        amount: number;
-        notes?: string;
-    }
+  /**
+   * Опции для хука useAsyncOperation
+   */
+  export interface UseAsyncOperationOptions {
+    /** Обработчик успешного выполнения операции */
+    onSuccess?: ((result: any) => void) | null;
+    /** Обработчик ошибки выполнения операции */
+    onError?: ((error: Error) => void) | null;
+    /** Показывать уведомление об успехе */
+    showSuccessNotification?: boolean;
+    /** Показывать уведомление об ошибке */
+    showErrorNotification?: boolean;
+    /** Сообщение об успехе */
+    successMessage?: string;
+    /** Сообщение об ошибке */
+    errorMessage?: string;
+  }
 
-    /**
-     * Данные для обновления записи списания материалов
-     */
-    interface MaterialLogUpdateData {
-        material_id?: number;
-        project_id?: number;
-        date?: string;
-        amount?: number;
-        notes?: string;
-    }
+  /**
+   * Результат хука useAsyncOperation
+   */
+  export interface UseAsyncOperationReturn {
+    /** Функция для выполнения асинхронной операции */
+    execute: (asyncFn: Function, operationOptions?: {
+      showSuccessNotification?: boolean;
+      showErrorNotification?: boolean;
+      successMessage?: string | Function;
+      errorMessage?: string | ((error: Error) => string);
+    }) => Promise<any>;
+    /** Флаг загрузки */
+    loading: boolean;
+    /** Ошибка, если произошла */
+    error: Error | null;
+  }
 
-    /**
-     * Фильтры для записей списания материалов
-     */
-    interface MaterialLogFilters {
-        projectId?: number;
-        materialId?: number;
-        dateFrom?: string;
-        dateTo?: string;
-    }
+  /**
+   * Отчёт по проекту
+   */
+  export interface ProjectReport extends Project {
+    date_start: string | null;
+    date_end: string | null;
+    salary_costs: number;
+    material_costs: number;
+    total_costs: number;
+    payments_received: number;
+    balance: number;
+    budget_remaining: number;
+  }
 
-    // ========== Поступления денег на проекты ==========
+  /**
+   * Отчёт по сотруднику
+   */
+  export interface EmployeeReport extends Employee {
+    role?: string | null;
+    total_salary: number;
+    total_received: number;
+    days_worked: number;
+    projects_count: number;
+  }
 
-    /**
-     * Поступление денег на проект
-     */
-    interface ProjectPayment extends BaseEntity {
-        project_id: number;
-        date: string;
-        amount: number;
-        notes?: string;
-        project_name?: string;
-        project_address?: string;
-    }
+  /**
+   * Отчёт по материалу
+   */
+  export interface MaterialReport extends Material {
+    total_amount: number;
+    total_cost: number;
+    projects_count: number;
+  }
 
-    /**
-     * Данные для создания поступления денег на проект
-     */
-    interface ProjectPaymentCreateData {
-        project_id: number;
-        date: string;
-        amount: number;
-        notes?: string;
-    }
+  /**
+   * Статистика проекта
+   */
+  export interface ProjectStats {
+    project: Project;
+    totalSalary: number;
+    workDays: number;
+    totalMaterialCost: number;
+    totalPayments: number;
+    totalCost: number;
+    balance: number;
+  }
 
-    /**
-     * Данные для обновления поступления денег на проект
-     */
-    interface ProjectPaymentUpdateData {
-        project_id?: number;
-        date?: string;
-        amount?: number;
-        notes?: string;
-    }
+  /**
+   * Статистика сотрудника
+   */
+  export interface EmployeeStats {
+    employee: Employee;
+    totalEarned: number;
+    workDays: number;
+  }
 
-    /**
-     * Фильтры для поступлений денег на проекты
-     */
-    interface ProjectPaymentFilters {
-        projectId?: number;
-        dateFrom?: string;
-        dateTo?: string;
-    }
+  /**
+   * Статистика материала
+   */
+  export interface MaterialStats {
+    material: Material;
+    totalAmount: number;
+    usageCount: number;
+    totalCost: number;
+  }
 
-    // ========== Отчёты ==========
+  /**
+   * Общая статистика
+   */
+  export interface OverallStats {
+    projectsCount: number;
+    employeesCount: number;
+    materialsCount: number;
+    totalSalary: number;
+    totalSalaryCosts: number;
+    totalMaterialCost: number;
+    totalMaterialCosts: number;
+    totalCost: number;
+    totalCosts: number;
+    totalPayments: number;
+    totalPaymentsReceived: number;
+    totalBudget: number;
+    balance: number;
+    totalBalance: number;
+  }
 
-    /**
-     * Общая статистика
-     */
-    interface OverallStats {
-        projectsCount: number;
-        employeesCount: number;
-        materialsCount: number;
-        totalBudget: number;
-        totalCosts: number;
-        totalSalaryCosts: number;
-        totalMaterialCosts: number;
-        totalPaymentsReceived: number;
-        totalBalance: number;
-    }
+  /**
+   * Результат экспорта базы данных
+   */
+  export interface BackupExportResult {
+    success: boolean;
+    message: string;
+    path?: string;
+  }
 
-    /**
-     * Отчёт по проектам
-     */
-    interface ProjectReport {
-        id: number;
-        name: string;
-        address?: string;
-        date_start?: string;
-        date_end?: string;
-        budget: number;
-        payments_received: number;
-        salary_costs: number;
-        material_costs: number;
-        total_costs: number;
-        balance: number;
-        budget_remaining: number;
-    }
+  /**
+   * Результат импорта базы данных
+   */
+  export interface BackupImportResult {
+    success: boolean;
+    message: string;
+    backupPath?: string;
+    isDuplicate?: boolean;
+  }
 
-    /**
-     * Отчёт по сотрудникам
-     */
-    interface EmployeeReport {
-        id: number;
-        name: string;
-        role?: string;
-        days_worked: number;
-        total_salary: number;
-        projects_count: number;
-    }
+  /**
+   * Резервная копия
+   */
+  export interface Backup {
+    path: string;
+    createdAt: string;
+    hash?: string;
+  }
 
-    /**
-     * Отчёт по материалам
-     */
-    interface MaterialReport {
-        id: number;
-        name: string;
-        unit: string;
-        price_per_unit: number;
-        total_amount: number;
-        total_cost: number;
-        projects_count: number;
-    }
+  /**
+   * Список резервных копий
+   */
+  export interface BackupListResult {
+    success: boolean;
+    backups: Backup[];
+    message?: string;
+  }
 
-    // ========== API Response ==========
+  /**
+   * Опции диалога открытия файла
+   */
+  export interface OpenDialogOptions {
+    properties?: Array<'openFile' | 'openDirectory' | 'multiSelections'>;
+    filters?: Array<{ name: string; extensions: string[] }>;
+    title?: string;
+    defaultPath?: string;
+  }
 
-    /**
-     * Ответ от API
-     */
-    interface ApiResponse {
-        success: boolean;
-        data?: any;
-        error?: {
-            message: string;
-            code: number;
-        };
-    }
+  /**
+   * Опции диалога сохранения файла
+   */
+  export interface SaveDialogOptions {
+    filters?: Array<{ name: string; extensions: string[] }>;
+    title?: string;
+    defaultPath?: string;
+  }
 
-    // ========== Формы и валидация ==========
+  /**
+   * Данные для графика проектов
+   */
+  export interface ProjectChartData {
+    name: string;
+    fullName: string;
+    budget: number;
+    costs: number;
+    payments: number;
+    balance: number;
+  }
 
-    /**
-     * Опции валидации строки
-     */
-    interface StringValidationOptions {
-        minLength?: number;
-        maxLength?: number;
-        pattern?: RegExp;
-    }
+  /**
+   * Данные для графика сотрудников
+   */
+  export interface EmployeeChartData {
+    name: string;
+    fullName: string;
+    earned: number;
+    received: number;
+    daysWorked: number;
+  }
 
-    /**
-     * Опции валидации числа
-     */
-    interface NumberValidationOptions {
-        min?: number;
-        max?: number;
-        allowZero?: boolean;
-        allowNegative?: boolean;
-    }
+  /**
+   * Данные для круговой диаграммы затрат
+   */
+  export interface CostChartData {
+    name: string;
+    value: number;
+    color: string;
+  }
 
-    /**
-     * Правило валидации поля
-     */
-    interface ValidationRule {
-        type: string;
-        label: string;
-        required?: boolean;
-        minLength?: number;
-        maxLength?: number;
-        min?: number;
-        max?: number;
-        allowZero?: boolean;
-        allowNegative?: boolean;
-    }
+  /**
+   * Данные для круговой диаграммы материалов
+   */
+  export interface MaterialChartData {
+    name: string;
+    value: number;
+    amount: number;
+  }
 
-    /**
-     * Правила валидации формы
-     */
-    interface ValidationRules {
-        required: string[];
-        fields: Record<string, ValidationRule>;
-        custom?: Array<{
-            field: string;
-            validator: (data: any) => ValidationResult;
-        }>;
-    }
-
-    /**
-     * Результат валидации
-     */
-    interface ValidationResult {
-        isValid: boolean;
-        errors: Record<string, string>;
-        error?: string;
-    }
-
-    // ========== Компоненты ==========
-
-    /**
-     * Пропсы формы
-     */
-    interface FormProps {
-        item?: any;
-        onSave: (data: any) => Promise<void>;
-        onCancel: () => void;
-        existingItems?: any[];
-    }
-
-    /**
-     * Пропсы списка
-     */
-    interface ListProps {
-        items: any[];
-        onEdit: (item: any) => void;
-        onDelete: (id: number) => void;
-        stats?: Record<number, any>;
-    }
-
-    // ========== Хуки ==========
-
-    /**
-     * Конфигурация хука usePageData
-     */
-    interface UsePageDataConfig {
-        loadData: () => Promise<any[]>;
-        createItem?: (data: any) => Promise<any>;
-        updateItem?: (id: number, data: any) => Promise<any>;
-        deleteItem?: (id: number) => Promise<boolean>;
-        messages?: {
-            loadError?: string;
-            createSuccess?: string;
-            createError?: string;
-            updateSuccess?: string;
-            updateError?: string;
-            deleteSuccess?: string;
-            deleteError?: string;
-            deleteConfirmTitle?: string;
-            deleteConfirmMessage?: string;
-        };
-        dependencies?: any[];
-    }
-
-    /**
-     * Результат хука usePageData
-     */
-    interface UsePageDataReturn {
-        items: any[];
-        loading: boolean;
-        editingItem: any | null;
-        setEditingItem: (item: any | null) => void;
-        handleAdd: (data: any) => Promise<void>;
-        handleUpdate: (id: number, data: any) => Promise<void>;
-        handleDelete: (id: number) => Promise<void>;
-        reloadData: () => Promise<void>;
-        confirmDialog: any;
-        operationLoading: boolean;
-    }
-
-    /**
-     * Опции хука useAsyncOperation
-     */
-    interface UseAsyncOperationOptions {
-        onSuccess?: (result: any) => void;
-        onError?: (error: Error) => void;
-        showSuccessNotification?: boolean;
-        showErrorNotification?: boolean;
-        successMessage?: string;
-        errorMessage?: string;
-    }
-
-    /**
-     * Результат хука useAsyncOperation
-     */
-    interface UseAsyncOperationReturn {
-        execute: (asyncFn: () => Promise<any>, operationOptions?: {
-            showSuccessNotification?: boolean;
-            showErrorNotification?: boolean;
-            successMessage?: string | ((result: any) => string);
-            errorMessage?: string | ((error: Error) => string);
-        }) => Promise<any>;
-        loading: boolean;
-        error: Error | null;
-    }
-
-    // ========== Уведомления ==========
-
-    /**
-     * Тип уведомления
-     */
-    type NotificationType = 'success' | 'error' | 'warning' | 'info';
-
-    /**
-     * Уведомление
-     */
-    interface Notification {
-        id: string;
-        type: NotificationType;
-        message: string;
-        duration?: number;
-    }
-
-    // ========== Фильтры ==========
-
-    /**
-     * Состояние фильтра
-     */
-    interface FilterState {
-        value?: string | number | null;
-        setValue: (value: string | number | null) => void;
-        clear: () => void;
-    }
+  /**
+   * Данные для графика общей статистики
+   */
+  export interface OverallStatsChartData {
+    name: string;
+    value: number;
+    color: string;
+  }
 }
+

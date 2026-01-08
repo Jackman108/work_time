@@ -2,15 +2,25 @@
   "name": "builder-manager",
   "version": "1.0.0",
   "description": "Система управления строительными проектами на Electron + SQLite",
-  "main": "main.js",
+  "main": "dist-main/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "npx electron .",
     "dev": "node dev-start.js",
     "dev:vite": "cd renderer && vite",
-    "dev:electron": "electron .",
+    "dev:electron": "npx electron .",
     "vite": "cd renderer && vite",
     "build": "cd renderer && vite build",
-    "prod": "cd renderer && npx vite build && cd .. && npm start"
+    "build:prod": "cd renderer && vite build --mode production",
+    "build:ts": "tsc -p tsconfig.main.json",
+    "build:ts:watch": "tsc -p tsconfig.main.json --watch",
+    "prebuild:dist": "npm run build:ts",
+    "postinstall": "electron-rebuild",
+    "rebuild": "electron-rebuild",
+    "pack": "yarn build:ts && yarn build:prod && electron-builder --dir",
+    "dist": "yarn build:ts && yarn build:prod && electron-builder",
+    "dist:portable": "yarn build:ts && yarn build:prod && electron-builder --win portable",
+    "prod": "cd renderer && yarn vite build && cd .. && yarn start",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [
     "electron",
@@ -20,15 +30,102 @@
   "author": "AI архитектор",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^8.1.0",
-    "electron": "latest",
+    "better-sqlite3": "^11.0.0",
+    "bootstrap": "^5.0.0",
+    "drizzle-orm": "^0.45.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.3",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "bootstrap": "^5.0.0"
+    "react-is": "^18.2.0",
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
-    "vite": "^7.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/electron": "^1.6.10",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.0.0",
-    "typescript": "^5.0.0"
+    "drizzle-kit": "^0.31.8",
+    "electron": "^33.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9",
+    "terser": "^5.26.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vite": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.buildermanager.app",
+    "productName": "Builder Manager",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "beforeBuild": null,
+    "afterPack": null,
+    "buildDependenciesFromSource": false,
+    "files": [
+      "dist-main/**/*",
+      "types/**/*",
+      "dist/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/*.{md,ts,map}",
+      "!node_modules/**/*.d.ts",
+      "!node_modules/**/*.h",
+      "!node_modules/**/*.cc",
+      "!node_modules/**/*.cpp",
+      "!node_modules/**/*.gypi",
+      "!node_modules/**/*.gyp",
+      "!node_modules/**/test/**/*",
+      "!node_modules/**/tests/**/*",
+      "!node_modules/**/docs/**/*",
+      "!node_modules/**/examples/**/*",
+      "!node_modules/**/benchmark/**/*",
+      "!**/*.{ts,tsx,jsx}",
+      "!**/test/**/*",
+      "!**/tests/**/*",
+      "!**/*.test.js",
+      "!**/*.spec.js",
+      "!renderer/**/*.config.js",
+      "!**/.git/**/*",
+      "!**/.vscode/**/*",
+      "!**/.idea/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "db",
+        "to": "db",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "compression": "normal",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "npmRebuild": true
   }
 }
