@@ -42,6 +42,14 @@ export function createMaterial(data: Types.MaterialCreateData): Types.Material {
     throw new Error('Failed to create material');
   }
 
+  console.log(`[DB] Создан материал: ID=${result.id}, название="${data.name}"`);
+
+  // Обновляем время модификации БД для обновления соединения
+  const dbModule = require('../db');
+  if (dbModule.updateLastDbModTime) {
+    dbModule.updateLastDbModTime();
+  }
+
   return result;
 }
 
@@ -70,6 +78,7 @@ export function updateMaterial(id: number, data: Types.MaterialUpdateData): Type
     throw new Error('Material not found');
   }
 
+  console.log(`[DB] Обновлен материал: ID=${id}, название="${result.name}"`);
   return result;
 }
 
@@ -79,8 +88,15 @@ export function updateMaterial(id: number, data: Types.MaterialUpdateData): Type
  * @returns {boolean} true, если материал удалён
  */
 export function deleteMaterial(id: number): boolean {
+  const material = getMaterialById(id);
   const result = db.delete(materials).where(eq(materials.id, id)).returning().get();
-  return !!result;
+  const deleted = !!result;
+
+  if (deleted && material) {
+    console.log(`[DB] Удален материал: ID=${id}, название="${material.name}"`);
+  }
+
+  return deleted;
 }
 
 /**

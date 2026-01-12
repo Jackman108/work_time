@@ -10,21 +10,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as schema from './schema';
 
-// Определяем путь к БД (аналогично database.ts)
-let isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR;
-if (!isPortable && process.execPath) {
-    const execName = path.basename(process.execPath, '.exe');
-    isPortable = execName.includes('portable') || execName.includes('Portable');
-}
-
-// В dev режиме __dirname указывает на dist-main, поэтому идём на уровень выше
-const projectRoot = __dirname.endsWith('dist-main')
-    ? path.dirname(__dirname)
-    : __dirname;
-
-const DB_DIR = isPortable
-    ? path.join(process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath), 'db')
-    : path.join(projectRoot, 'db');
+// Определяем путь к БД используя общие утилиты
+import { getDatabaseDirectory, getProjectRoot } from '../services/utils/pathUtils';
+const DB_DIR = getDatabaseDirectory();
+const projectRoot = getProjectRoot(__dirname);
 const DB_PATH = path.join(DB_DIR, 'app.db');
 
 // Создаём директорию для БД, если она не существует
@@ -40,6 +29,17 @@ ensureDbDirectory();
 let sqliteDbInstance: Database.Database | null = null;
 let drizzleDbInstance: ReturnType<typeof drizzle> | null = null;
 
+// Переменная для отслеживания времени последнего изменения файла БД
+let lastDbFileModTime: number = 0;
+
+// Флаг для принудительного пересоздания соединения
+// Используется после восстановления бэкапа
+let forceReconnect: boolean = false;
+
+// Кеш для проверки инициализации таблиц
+// КРИТИЧНО: Должен быть объявлен ДО createConnection(), так как initTables() использует его
+let tablesInitialized = false;
+
 /**
  * Создать новое соединение с базой данных
  */
@@ -51,15 +51,99 @@ function createConnection(): void {
         } catch (e) {
             // Игнорируем ошибки закрытия
         }
+        sqliteDbInstance = null;
     }
 
+    // Сбрасываем Drizzle экземпляр
+    drizzleDbInstance = null;
+
     // Создаём новое better-sqlite3 соединение с оптимизациями
-    sqliteDbInstance = new Database(DB_PATH, {
-        // Оптимизации для производительности
-        verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
-    });
+    const actualDbPath = path.resolve(DB_PATH);
+    sqliteDbInstance = new Database(actualDbPath);
+
+    // Проверяем целостность БД после открытия (если файл существовал)
+    if (fs.existsSync(actualDbPath) && sqliteDbInstance) {
+        try {
+            const integrityCheck = sqliteDbInstance.prepare("PRAGMA integrity_check").get() as { 'integrity_check': string };
+            if (integrityCheck['integrity_check'] !== 'ok') {
+                console.error(`[DB] БД повреждена: ${integrityCheck['integrity_check']}`);
+                // Закрываем поврежденное соединение
+                try {
+                    sqliteDbInstance.close();
+                } catch (e) {
+                    // Игнорируем
+                }
+                sqliteDbInstance = null;
+
+                // Сохраняем поврежденный файл и создаем новый
+                const backupPath = actualDbPath + '.corrupted.' + Date.now();
+                try {
+                    fs.renameSync(actualDbPath, backupPath);
+                    console.log(`[DB] Поврежденная БД сохранена как: ${backupPath}`);
+                } catch (e) {
+                    // Если переименование не удалось, удаляем поврежденный файл
+                    try {
+                        fs.unlinkSync(actualDbPath);
+                    } catch (e2) {
+                        // Игнорируем
+                    }
+                }
+
+                // Создаем новую БД
+                sqliteDbInstance = new Database(actualDbPath);
+                console.log('[DB] Создана новая БД');
+            }
+        } catch (e) {
+            // Если проверка не удалась, возможно БД новая - проверяем, что соединение работает
+            if (sqliteDbInstance) {
+                try {
+                    sqliteDbInstance.prepare('SELECT 1').get();
+                } catch (e2) {
+                    // БД действительно повреждена
+                    console.error('[DB] БД повреждена и не может быть использована');
+                    try {
+                        sqliteDbInstance.close();
+                    } catch (e3) {
+                        // Игнорируем
+                    }
+                    sqliteDbInstance = null;
+
+                    // Сохраняем поврежденный файл и создаем новый
+                    const backupPath = actualDbPath + '.corrupted.' + Date.now();
+                    try {
+                        if (fs.existsSync(actualDbPath)) {
+                            fs.renameSync(actualDbPath, backupPath);
+                        }
+                    } catch (e4) {
+                        // Игнорируем
+                    }
+
+                    // Создаем новую БД
+                    sqliteDbInstance = new Database(actualDbPath);
+                }
+            }
+        }
+    }
+
+    // Проверяем, что соединение создано
+    if (!sqliteDbInstance) {
+        throw new Error('Failed to create database connection');
+    }
+
+    // Обновляем время модификации файла
+    try {
+        if (fs.existsSync(actualDbPath)) {
+            lastDbFileModTime = fs.statSync(actualDbPath).mtimeMs;
+        }
+    } catch (e) {
+        // Игнорируем
+    }
 
     // Критически важные настройки
+    if (!sqliteDbInstance) {
+        throw new Error('Database connection is not available');
+    }
+
     sqliteDbInstance.pragma('foreign_keys = ON');
 
     // Оптимизация: включаем WAL режим для лучшей производительности и конкурентного доступа
@@ -85,13 +169,14 @@ function createConnection(): void {
 
     // Создаём Drizzle клиент
     drizzleDbInstance = drizzle(sqliteDbInstance, { schema });
+
+    // КРИТИЧНО: После создания соединения инициализируем таблицы
+    // Это гарантирует, что при первом запуске (когда БД не существует) создастся базовая структура
+    initTables();
 }
 
 // Инициализируем соединение при первой загрузке
 createConnection();
-
-// Кеш для проверки инициализации таблиц
-let tablesInitialized = false;
 
 /**
  * Проверить, существуют ли все необходимые таблицы
@@ -113,17 +198,63 @@ function checkTablesExist(): boolean {
 }
 
 /**
+ * Проверить и добавить недостающие колонки в таблицы
+ */
+function migrateTableColumns(): void {
+    if (!sqliteDbInstance) {
+        return;
+    }
+
+    try {
+        // Проверяем и добавляем недостающие колонки в таблицу projects
+        const projectsColumns = sqliteDbInstance.prepare("PRAGMA table_info(projects)").all() as Array<{ name: string; type: string }>;
+        const existingColumns = new Set(projectsColumns.map(col => col.name.toLowerCase()));
+
+        // Список обязательных колонок для таблицы projects
+        const requiredColumns = [
+            { name: 'description', type: 'TEXT' },
+            { name: 'address', type: 'TEXT' },
+            { name: 'date_start', type: 'TEXT' },
+            { name: 'date_end', type: 'TEXT' },
+        ];
+
+        for (const col of requiredColumns) {
+            if (!existingColumns.has(col.name.toLowerCase())) {
+                console.log(`[DB] Adding missing column '${col.name}' to table 'projects'...`);
+                sqliteDbInstance.prepare(`ALTER TABLE projects ADD COLUMN ${col.name} ${col.type}`).run();
+            }
+        }
+    } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.warn('[DB] Error migrating table columns:', err.message);
+    }
+}
+
+/**
  * Инициализировать таблицы из схемы
  * Вызывается автоматически при первом запуске (один раз)
  */
 function initTables(): void {
     if (tablesInitialized) {
-        return; // Уже инициализировано
+        // Всегда проверяем и добавляем недостающие колонки, даже если таблицы уже инициализированы
+        migrateTableColumns();
+        return;
     }
 
     try {
+        // КРИТИЧНО: Если БД не существует, создаем базовую БД с полной структурой
+        const dbExists = fs.existsSync(DB_PATH);
+        if (!dbExists) {
+            console.log('[DB] База данных не найдена, будет создана новая БД с базовой структурой...');
+            // Создаем директорию для БД, если её нет
+            ensureDbDirectory();
+        }
+
         // Оптимизированная проверка наличия всех таблиц одним запросом
-        if (checkTablesExist()) {
+        // Если БД только что создана, таблиц еще нет, поэтому пропускаем проверку
+        if (dbExists && checkTablesExist()) {
+            // Таблицы существуют, но нужно проверить колонки
+            migrateTableColumns();
             tablesInitialized = true;
             return;
         }
@@ -136,6 +267,7 @@ function initTables(): void {
             if (fs.existsSync(migrationsDir) && drizzleDbInstance) {
                 migrate(drizzleDbInstance, { migrationsFolder: migrationsDir });
                 console.log('[DB] Database schema initialized from migrations');
+                migrateTableColumns(); // Проверяем колонки после миграций
                 tablesInitialized = true;
                 return;
             }
@@ -150,11 +282,14 @@ function initTables(): void {
         }
         console.log('[DB] Creating tables directly...');
         createTablesDirectly();
+        migrateTableColumns(); // Проверяем колонки после создания таблиц
         tablesInitialized = true;
     } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         console.error('[DB] Error initializing schema:', err.message);
         // Продолжаем работу, таблицы могут уже существовать
+        // Но все равно пытаемся мигрировать колонки
+        migrateTableColumns();
     }
 }
 
@@ -260,42 +395,185 @@ function createTablesDirectly(): void {
     console.log('[DB] Tables created successfully');
 }
 
-// Инициализируем таблицы при загрузке модуля
-initTables();
+// Инициализация таблиц теперь происходит в createConnection()
+// Это гарантирует, что таблицы создаются сразу после открытия соединения
 
 /**
  * Переинициализировать соединение с базой данных
  * Используется после импорта базы данных
  */
 export function reconnectDatabase(): void {
-    console.log('[DB] Reconnecting database after import...');
-    tablesInitialized = false; // Сбрасываем флаг инициализации
+    // Оптимизация: если соединение уже открыто и файл не изменился, не переоткрываем
+    if (sqliteDbInstance && drizzleDbInstance && tablesInitialized) {
+        try {
+            // Быстрая проверка: пробуем выполнить запрос
+            sqliteDbInstance.prepare('SELECT 1').get();
+            // Соединение активно, не переоткрываем
+            return;
+        } catch (e) {
+            // Соединение неактивно, переоткрываем
+        }
+    }
+
+    // Закрываем старое соединение полностью
+    if (sqliteDbInstance) {
+        try {
+            sqliteDbInstance.close();
+        } catch (e) {
+            // Игнорируем ошибки закрытия
+        }
+        sqliteDbInstance = null;
+    }
+
+    // Сбрасываем Drizzle экземпляр
+    drizzleDbInstance = null;
+
+    // Сбрасываем флаг инициализации
+    tablesInitialized = false;
+
+    // Создаем новое соединение (таблицы инициализируются автоматически в createConnection)
     createConnection();
-    initTables(); // Повторно инициализируем таблицы
 }
 
-// Обработка закрытия приложения
-process.on('beforeExit', () => {
-    if (sqliteDbInstance) {
-        sqliteDbInstance.close();
+/**
+ * Установить флаг принудительного переподключения
+ * Используется после восстановления бэкапа для гарантии обновления соединений
+ */
+export function setForceReconnect(): void {
+    forceReconnect = true;
+    console.log('[DB] Установлен флаг принудительного переподключения');
+}
+
+/**
+ * Сбросить флаг принудительного переподключения
+ * Используется после успешной проверки данных
+ */
+export function resetForceReconnect(): void {
+    forceReconnect = false;
+    console.log('[DB] Флаг принудительного переподключения сброшен');
+}
+
+/**
+ * Обновить время модификации БД после операций записи
+ * Это гарантирует, что соединение будет обновлено и увидит новые данные
+ */
+export function updateLastDbModTime(): void {
+    try {
+        if (fs.existsSync(DB_PATH)) {
+            const currentModTime = fs.statSync(DB_PATH).mtimeMs;
+            const walPath = DB_PATH + '-wal';
+            const walModTime = fs.existsSync(walPath) ? fs.statSync(walPath).mtimeMs : currentModTime;
+            // Используем максимальное время модификации (основной файл или WAL)
+            lastDbFileModTime = Math.max(currentModTime, walModTime);
+        }
+    } catch (e) {
+        // Игнорируем ошибки
     }
-});
+}
+
+// Обработка закрытия приложения (только один раз)
+if (!process.listenerCount('beforeExit')) {
+    process.on('beforeExit', () => {
+        if (sqliteDbInstance) {
+            try {
+                sqliteDbInstance.close();
+            } catch (e) {
+                // Игнорируем
+            }
+        }
+    });
+}
 
 // Функция для получения актуального соединения
 function getDbConnection(): ReturnType<typeof drizzle> {
-    if (!drizzleDbInstance) {
+    // КРИТИЧНО: Если установлен флаг принудительного переподключения, пересоздаем соединение
+    if (forceReconnect) {
         createConnection();
+        return drizzleDbInstance!;
+    }
+
+    // Проверяем, что соединение существует и открыто
+    if (!sqliteDbInstance || !drizzleDbInstance) {
+        createConnection();
+    } else {
+        // Проверяем, что соединение действительно открыто
+        try {
+            sqliteDbInstance.prepare('SELECT 1').get();
+
+            // КРИТИЧНО: Проверяем, что файл БД не изменился
+            // Если файл БД был изменен (например, после восстановления бэкапа),
+            // нужно пересоздать соединение
+            // Также проверяем WAL файл для актуальности данных после операций записи
+            try {
+                if (fs.existsSync(DB_PATH)) {
+                    const currentModTime = fs.statSync(DB_PATH).mtimeMs;
+                    const walPath = DB_PATH + '-wal';
+                    const walModTime = fs.existsSync(walPath) ? fs.statSync(walPath).mtimeMs : 0;
+
+                    // Если основной файл или WAL файл изменились, пересоздаем соединение
+                    if ((currentModTime !== lastDbFileModTime && lastDbFileModTime > 0) ||
+                        (walModTime > 0 && walModTime > lastDbFileModTime)) {
+                        createConnection();
+                    }
+                }
+            } catch (e) {
+                // Игнорируем ошибки проверки файла
+            }
+        } catch (e) {
+            // Соединение закрыто - пересоздаем
+            createConnection();
+        }
     }
     return drizzleDbInstance!;
 }
 
 // Экспортируем Drizzle клиент и схемы
-const db = getDbConnection();
+// Используем Proxy для автоматического получения актуального соединения
+// КРИТИЧНО: Proxy гарантирует, что каждый раз при обращении к db получается актуальное соединение
+// Это важно после восстановления бэкапа - сервисы всегда получат соединение с восстановленной БД
+const db = new Proxy({} as ReturnType<typeof drizzle>, {
+    get(target, prop) {
+        // Всегда получаем актуальное соединение
+        // КРИТИЧНО: При каждом обращении к db получаем новое соединение через getDbConnection()
+        // Это гарантирует, что после восстановления бэкапа все сервисы получат соединение с восстановленной БД
+        const actualDb = getDbConnection();
+
+
+        const value = (actualDb as any)[prop];
+        if (typeof value === 'function') {
+            // Привязываем контекст к актуальному соединению
+            return value.bind(actualDb);
+        }
+        return value;
+    }
+});
+
 export default db;
 export { db, schema };
 export * from './schema';
 
-// Экспортируем sqlite для случаев, когда нужен прямой доступ
-export const sqliteDb = sqliteDbInstance;
+// Экспортируем sqlite через функцию для безопасности
+export function getSqliteDb(): Database.Database {
+    if (!sqliteDbInstance) {
+        createConnection();
+    }
+    if (!sqliteDbInstance) {
+        throw new Error('Database connection is not available');
+    }
+    return sqliteDbInstance;
+}
+
+// Для обратной совместимости экспортируем геттер через Proxy
+export const sqliteDb: Database.Database = new Proxy({} as Database.Database, {
+    get(target, prop) {
+        const db = getSqliteDb();
+        const value = (db as any)[prop];
+        if (typeof value === 'function') {
+            return value.bind(db);
+        }
+        return value;
+    }
+}) as Database.Database;
+
 export type { Database as SqliteDatabase } from 'better-sqlite3';
 

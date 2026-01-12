@@ -45,6 +45,14 @@ export function createEmployee(data: Types.EmployeeCreateData): Types.Employee {
     throw new Error('Failed to create employee');
   }
 
+  console.log(`[DB] Создан сотрудник: ID=${result.id}, имя="${data.name}"`);
+  
+  // Обновляем время модификации БД для обновления соединения
+  const dbModule = require('../db');
+  if (dbModule.updateLastDbModTime) {
+    dbModule.updateLastDbModTime();
+  }
+  
   return mapToApiFormat(result);
 }
 
@@ -74,6 +82,7 @@ export function updateEmployee(id: number, data: Types.EmployeeUpdateData): Type
     throw new Error('Employee not found');
   }
 
+  console.log(`[DB] Обновлен сотрудник: ID=${id}, имя="${result.name}"`);
   return mapToApiFormat(result);
 }
 
@@ -83,8 +92,15 @@ export function updateEmployee(id: number, data: Types.EmployeeUpdateData): Type
  * @returns {boolean} true, если сотрудник удалён
  */
 export function deleteEmployee(id: number): boolean {
+  const employee = getEmployeeById(id);
   const result = db.delete(employees).where(eq(employees.id, id)).returning().get();
-  return !!result;
+  const deleted = !!result;
+  
+  if (deleted && employee) {
+    console.log(`[DB] Удален сотрудник: ID=${id}, имя="${employee.name}"`);
+  }
+  
+  return deleted;
 }
 
 /**

@@ -28,12 +28,14 @@ const ALLOWED_CHANNELS: Record<string, string[]> = {
   backup: [
     'export',
     'exportToExeDir',
+    'exportToFile',
     'import',
     'importFromFile',
     'createAutoBackup',
     'getBackupList',
     'deleteBackup',
     'getExeDirectory',
+    'getCurrentDatabaseInfo',
     'cleanupOldFiles'
   ],
   dialog: ['showOpenDialog', 'showSaveDialog']

@@ -53,15 +53,12 @@ export interface IpcChannels {
         GET_OVERALL_STATS: string;
     };
     BACKUP: {
-        EXPORT: string;
-        EXPORT_TO_EXE_DIR: string;
-        IMPORT: string;
+        EXPORT_TO_FILE: string;
         IMPORT_FROM_FILE: string;
-        CREATE_AUTO_BACKUP: string;
         GET_BACKUP_LIST: string;
         DELETE_BACKUP: string;
         GET_EXE_DIRECTORY: string;
-        CLEANUP_OLD_FILES: string;
+        GET_CURRENT_DATABASE_INFO: string;
     };
     DIALOG: {
         SHOW_OPEN_DIALOG: string;

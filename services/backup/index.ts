@@ -1,6 +1,6 @@
 /**
- * Сервис для резервного копирования и восстановления базы данных
- * Использует BackupManager для управления файлами бэкапов
+ * Сервис для резервного копирования и восстановления базы данных (версия 2.0)
+ * Отказоустойчивая система с атомарными операциями и полной изоляцией бэкапов
  * 
  * @module services/backup
  */
@@ -8,117 +8,118 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
-// Импорты через require для избежания циклических зависимостей
-const databaseModule = require('../database');
-const dbModule = require('../db');
-import { backupManager } from './BackupManager';
-import type { ExtendedDatabase } from '../base/BaseService';
+import { BackupManagerV2 } from './BackupManagerV2';
+import { DatabaseConnectionManager } from './DatabaseConnectionManager';
+import { quickValidateFile } from './utils';
+import { getDatabaseDirectory, isPortable, getProjectRoot } from '../utils/pathUtils';
 import type { Types } from 'types';
 
-/**
- * Получить актуальную ссылку на базу данных
- */
-function getDb(): ExtendedDatabase {
-    delete require.cache[require.resolve('../database')];
-    const dbModule = require('../database');
-    return dbModule.default as ExtendedDatabase;
-}
-
-/**
- * Получить путь к директории exe файла
- */
-export function getExeDirectory(): string {
-    let isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR;
-    if (!isPortable && process.execPath) {
-        const execName = path.basename(process.execPath, '.exe');
-        isPortable = execName.includes('portable') || execName.includes('Portable');
-    }
-
-    if (isPortable) {
-        return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
-    }
-
-    if (app && app.isPackaged) {
-        return path.dirname(process.execPath);
-    }
-
-    return path.join(__dirname, '..', '..');
-}
-
-/**
- * Получить путь к текущей базе данных
- */
+// Получаем путь к текущей БД
 function getCurrentDatabasePath(): string {
-    try {
-        const db = getDb();
-        if (db && db.dbPath) {
-            return db.dbPath;
+    return path.join(getDatabaseDirectory(), 'app.db');
+}
+
+// Инициализируем менеджеры
+const dbPath = getCurrentDatabasePath();
+const connectionManager = DatabaseConnectionManager.getInstance(dbPath);
+const backupManager = new BackupManagerV2(connectionManager);
+
+// Отслеживаем последний загруженный бэкап
+let lastLoadedBackupPath: string | null = null;
+
+/**
+ * Очистить кеш всех модулей, связанных с БД
+ */
+function clearAllDatabaseModuleCache(): void {
+    const modulesToClear = [
+        '../../database',
+        '../../db',
+        '../../db/index',
+        '../../db/schema',
+        '../projects',
+        '../employees',
+        '../materials',
+        '../workLog',
+        '../materialLog',
+        '../projectPayments',
+        '../reports',
+        '../backup',
+        '../base/BaseService',
+        '../base/ErrorHandler',
+        '../utils/fieldMapper',
+        '../utils/queryBuilder',
+    ];
+
+    modulesToClear.forEach(modulePath => {
+        try {
+            const resolvedPath = require.resolve(modulePath);
+            if (require.cache[resolvedPath]) {
+                delete require.cache[resolvedPath];
+            }
+        } catch (e) {
+            // Игнорируем ошибки разрешения путей
         }
-    } catch (e) {
-        // Игнорируем ошибки
-    }
+    });
 
-    // Пробуем получить из модуля database
-    try {
-        delete require.cache[require.resolve('../database')];
-        const dbModule = require('../database');
-        return dbModule.dbPath;
-    } catch (e) {
-        throw new Error('Не удалось определить путь к базе данных');
+    // Очищаем кеш для всех модулей, содержащих 'db', 'database' или 'services'
+    Object.keys(require.cache).forEach(key => {
+        if (key.includes('db') || key.includes('database') || key.includes('services')) {
+            delete require.cache[key];
+        }
+    });
+}
+
+/**
+ * Перезагрузить все сервисы
+ */
+function reloadAllServices(): void {
+    clearAllDatabaseModuleCache();
+
+    // Вызываем глобальную функцию reloadServices, если она доступна
+    if ((global as any).reloadServices && typeof (global as any).reloadServices === 'function') {
+        try {
+            (global as any).reloadServices();
+        } catch (e) {
+            // Игнорируем ошибки
+        }
     }
 }
 
 /**
- * Экспортировать базу данных в директорию exe (одна уникальная копия)
+ * Экспортировать базу данных в выбранное место
  */
-export async function exportDatabaseToExeDir(): Promise<Types.BackupExportResult> {
-    const db = getDb();
-    if (!db || !db.dbPath) {
-        throw new Error('Соединение с базой данных недоступно');
-    }
-
-    const exeDir = getExeDirectory();
-    if (!fs.existsSync(exeDir)) {
-        fs.mkdirSync(exeDir, { recursive: true });
-    }
-
-    const backupPath = path.join(exeDir, 'app_backup.db');
-
-    // Удаляем старую копию, если существует
-    if (fs.existsSync(backupPath)) {
-        fs.unlinkSync(backupPath);
-    }
-
-    // Копируем текущую БД
-    fs.copyFileSync(db.dbPath, backupPath);
-
-    return {
-        success: true,
-        message: 'База данных успешно экспортирована в директорию программы',
-        path: backupPath
-    };
-}
-
-/**
- * Экспортировать базу данных в папку backups
- */
-export async function exportDatabase(): Promise<Types.BackupExportResult> {
-    const db = getDb();
-    if (!db || !db.dbPath) {
-        throw new Error('Соединение с базой данных недоступно');
-    }
-
-    if (!fs.existsSync(db.dbPath)) {
-        throw new Error('Файл базы данных не найден');
+export async function exportDatabaseToFile(savePath: string): Promise<Types.BackupExportResult> {
+    if (!savePath) {
+        throw new Error('Путь для сохранения не указан');
     }
 
     try {
-        const metadata = await backupManager.createBackupFromFile(db.dbPath);
+        // Создаем директорию, если её нет
+        const saveDir = path.dirname(savePath);
+        if (!fs.existsSync(saveDir)) {
+            fs.mkdirSync(saveDir, { recursive: true });
+        }
+
+        // Создаем бэкап с указанным именем
+        const fileName = path.basename(savePath);
+        const result = await backupManager.createBackup(fileName);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Ошибка создания бэкапа');
+        }
+
+        // Если путь отличается от пути бэкапа, копируем файл
+        const normalizedBackupPath = path.resolve(result.backupPath);
+        const normalizedSavePath = path.resolve(savePath);
+
+        if (normalizedBackupPath !== normalizedSavePath) {
+            fs.copyFileSync(result.backupPath, savePath);
+        }
 
         return {
             success: true,
             message: 'База данных успешно экспортирована',
-            path: metadata.path
+            path: savePath
         };
     } catch (error) {
         throw new Error(`Ошибка экспорта базы данных: ${(error as Error).message}`);
@@ -139,188 +140,56 @@ export async function importDatabaseFromFile(filePath: string): Promise<Types.Ba
         throw new Error(`Файл не найден: ${normalizedPath}`);
     }
 
-    // Валидация файла через BackupManager
     try {
-        // Валидируем файл (BackupManager делает это внутри)
-        const testDb = require('better-sqlite3').default || require('better-sqlite3');
-        const db = new testDb(normalizedPath, { readonly: true });
-        db.prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").get();
-        db.close();
-    } catch (error) {
-        throw new Error(`Файл не является валидной базой данных SQLite: ${(error as Error).message}`);
-    }
+        // Быстрая валидация файла (только проверка существования и размера)
+        quickValidateFile(normalizedPath);
 
-    // Получаем путь к текущей БД
-    const currentDbPath = getCurrentDatabasePath();
-    if (!currentDbPath) {
-        throw new Error('Не удалось определить путь к текущей базе данных');
-    }
+        console.log(`[Backup] Начало импорта бэкапа: ${path.basename(normalizedPath)}`);
 
-    // Создаем резервную копию текущей БД перед импортом
-    const rollbackPath = currentDbPath + '.rollback.' + Date.now();
-    let rollbackCreated = false;
+        // Восстанавливаем из бэкапа
+        // restoreFromBackup уже переоткрывает соединения внутри себя
+        const result = await backupManager.restoreFromBackup(normalizedPath);
 
-    try {
-        // Закрываем соединения
-        const db = getDb();
-        if (db && databaseModule.closeDatabase) {
-            databaseModule.closeDatabase();
+        if (!result.success) {
+            console.error(`[Backup] Ошибка импорта бэкапа: ${result.error}`);
+            throw new Error(result.error || 'Ошибка восстановления базы данных');
         }
 
-        // Закрываем Drizzle соединение
+        // Сохраняем путь к загруженному бэкапу
+        lastLoadedBackupPath = normalizedPath;
+
+        // Оптимизация: restoreFromBackup уже переоткрыл соединения и очистил кеш
+        // Не перезагружаем все сервисы заново - это замедляет процесс
+        // Вместо этого просто сбрасываем флаг принудительного переподключения
         try {
-            if (dbModule.sqliteDb && typeof dbModule.sqliteDb.close === 'function') {
-                dbModule.sqliteDb.close();
+            const dbModule = require('../../db');
+            if (dbModule.resetForceReconnect) {
+                dbModule.resetForceReconnect();
             }
         } catch (e) {
-            // Игнорируем ошибки
+            // Игнорируем
         }
 
-        await new Promise(resolve => setTimeout(resolve, 200));
+        console.log(`[Backup] Бэкап успешно импортирован: ${path.basename(normalizedPath)}`);
 
-        // Создаем резервную копию текущей БД
-        if (fs.existsSync(currentDbPath)) {
-            fs.copyFileSync(currentDbPath, rollbackPath);
-            rollbackCreated = true;
-        }
-
-        // Копируем импортируемый файл
-        fs.copyFileSync(normalizedPath, currentDbPath);
-
-        // Проверяем, что файл скопирован
-        if (!fs.existsSync(currentDbPath)) {
-            throw new Error('Не удалось скопировать файл базы данных');
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Переоткрываем соединение через database.ts
-        if (databaseModule.reopenDatabase) {
-            databaseModule.reopenDatabase();
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Переинициализируем Drizzle соединение
-        try {
-            delete require.cache[require.resolve('../db')];
-            if (dbModule.reconnectDatabase) {
-                dbModule.reconnectDatabase();
-            }
-        } catch (e) {
-            console.warn('[Backup] Failed to reconnect Drizzle:', (e as Error).message);
-        }
-
-        // Очищаем кеш модулей
-        delete require.cache[require.resolve('../database')];
-        delete require.cache[require.resolve('../db')];
-        delete require.cache[require.resolve('./base/BaseService')];
-
-        // Проверяем соединение
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        const newDb = getDb();
-        if (!newDb || !newDb.prepare) {
-            throw new Error('Соединение с базой данных недействительно');
-        }
-
-        newDb.prepare('SELECT 1').get();
-
-        // Проверяем Drizzle соединение
-        try {
-            delete require.cache[require.resolve('../db')];
-            const dbModule = require('../db');
-            const db = dbModule.db;
-            if (db && dbModule.projects) {
-                db.select().from(dbModule.projects).limit(1).all();
-            }
-        } catch (e) {
-            throw new Error(`Ошибка проверки Drizzle соединения: ${(e as Error).message}`);
-        }
-
-        // Перезагружаем сервисы
-        if ((global as any).reloadServices && typeof (global as any).reloadServices === 'function') {
-            try {
-                (global as any).reloadServices();
-            } catch (e) {
-                console.error('[Backup] Error reloading services:', (e as Error).message);
-            }
-        }
-
-        // Сохраняем импортированный файл в папку backups через BackupManager
-        try {
-            await backupManager.createBackupFromFile(normalizedPath);
-        } catch (e) {
-            console.warn('[Backup] Could not save imported file to backups:', (e as Error).message);
-        }
-
-        // Удаляем резервную копию, так как импорт успешен
-        if (rollbackCreated && fs.existsSync(rollbackPath)) {
-            try {
-                fs.unlinkSync(rollbackPath);
-            } catch (e) {
-                // Игнорируем ошибки удаления
-            }
-        }
+        // Не создаем бэкап из импортированного файла - это замедляет процесс
+        // Пользователь может создать бэкап вручную, если нужно
 
         return {
             success: true,
             message: 'База данных успешно импортирована'
         };
-
     } catch (error) {
-        // Восстанавливаем из резервной копии при ошибке
-        if (rollbackCreated && fs.existsSync(rollbackPath)) {
-            try {
-                console.log('[Backup] Restoring from rollback...');
-                fs.copyFileSync(rollbackPath, currentDbPath);
-                await new Promise(resolve => setTimeout(resolve, 200));
-                if (databaseModule.reopenDatabase) {
-                    databaseModule.reopenDatabase();
-                }
-                delete require.cache[require.resolve('../db')];
-                if (dbModule.reconnectDatabase) {
-                    dbModule.reconnectDatabase();
-                }
-                await new Promise(resolve => setTimeout(resolve, 200));
-                delete require.cache[require.resolve('../database')];
-                getDb();
-            } catch (restoreError) {
-                console.error('[Backup] Failed to restore from rollback:', (restoreError as Error).message);
-            }
-        }
-
         throw new Error(`Ошибка импорта базы данных: ${(error as Error).message}`);
     }
 }
 
-/**
- * Импортировать базу данных (альтернативная функция)
- */
-export async function importDatabase(filePath: string | null = null): Promise<Types.BackupImportResult> {
-    if (!filePath) {
-        throw new Error('Путь к файлу не указан');
-    }
-
-    // Используем основную функцию импорта
-    return importDatabaseFromFile(filePath);
-}
-
-/**
- * Создать автоматическую резервную копию
- */
-export async function createAutoBackup(): Promise<Types.BackupExportResult> {
-    return exportDatabase();
-}
 
 /**
  * Получить список бэкапов
  */
 export async function getBackupList(): Promise<Types.BackupListResult> {
     try {
-        // Синхронизируем метаданные с файлами
-        backupManager.syncMetadataWithFiles();
-
         const backups = backupManager.getBackupList();
 
         const result = backups.map(backup => {
@@ -365,67 +234,45 @@ export async function deleteBackup(filePath: string): Promise<{ success: boolean
 }
 
 /**
- * Очистить старые временные файлы
+ * Получить информацию о текущей базе данных
+ * Если загружен бэкап, показывает информацию о бэкапе
  */
-export function cleanupOldBackupFiles(): { deletedCount: number; message: string } {
+export function getCurrentDatabaseInfo(): { name: string; path: string } {
     try {
-        const dbDir = path.join(__dirname, '..', '..', 'db');
-        if (!fs.existsSync(dbDir)) {
-            return { deletedCount: 0, message: 'Директория базы данных не найдена' };
+        // Если загружен бэкап, показываем информацию о нем
+        if (lastLoadedBackupPath && fs.existsSync(lastLoadedBackupPath)) {
+            return {
+                name: path.basename(lastLoadedBackupPath),
+                path: lastLoadedBackupPath
+            };
         }
 
-        const files = fs.readdirSync(dbDir);
-        const now = Date.now();
-        const maxAge = 24 * 60 * 60 * 1000; // 24 часа
-        let deletedCount = 0;
-
-        files.forEach(file => {
-            if (file === 'app.db' || file === 'backups' || file === 'backups_metadata.json' ||
-                file === 'index.ts' || file === 'schema.ts') {
-                return;
-            }
-
-            const filePath = path.join(dbDir, file);
-
-            try {
-                const stats = fs.statSync(filePath);
-                if (!stats.isFile()) {
-                    return;
-                }
-
-                const fileAge = now - stats.mtimeMs;
-
-                if (file.startsWith('app_temp_') ||
-                    file.startsWith('app_corrupted_') ||
-                    file.includes('.backup.') ||
-                    file.includes('.rollback.') ||
-                    file.endsWith('.db-shm') ||
-                    file.endsWith('.db-wal')) {
-
-                    if (fileAge > maxAge) {
-                        try {
-                            fs.unlinkSync(filePath);
-                            deletedCount++;
-                        } catch (e) {
-                            // Игнорируем ошибки
-                        }
-                    }
-                }
-            } catch (e) {
-                // Игнорируем ошибки
-            }
-        });
-
-        const message = deletedCount > 0
-            ? `Удалено ${deletedCount} старых временных файлов`
-            : 'Нет старых файлов для удаления';
-
-        return { deletedCount, message };
-    } catch (error) {
+        // Иначе показываем информацию о текущей БД
+        const dbPath = connectionManager.getDatabasePath();
+        const name = path.basename(dbPath);
         return {
-            deletedCount: 0,
-            message: 'Ошибка при очистке файлов: ' + (error as Error).message
+            name,
+            path: dbPath
         };
+    } catch (error) {
+        throw new Error(`Не удалось получить информацию о базе данных: ${(error as Error).message}`);
     }
 }
+
+/**
+ * Получить путь к директории exe файла
+ */
+export function getExeDirectory(): string {
+    if (isPortable()) {
+        return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
+    }
+
+    if (app && app.isPackaged) {
+        return path.dirname(process.execPath);
+    }
+
+    return getProjectRoot(__dirname);
+}
+
+
 

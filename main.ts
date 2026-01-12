@@ -94,7 +94,7 @@ function loadServices(): void {
  * Очищает кеш модулей и перезагружает сервисы для получения нового соединения с БД
  */
 function reloadServices(): void {
-    console.log('[MAIN] Reloading services after database import...');
+    // Убрали лог перезагрузки сервисов - это происходит слишком часто
 
     // Очищаем кеш всех модулей, связанных с БД
     const modulesToClear = [
@@ -125,9 +125,38 @@ function reloadServices(): void {
         }
     });
 
-    // Перезагружаем сервисы
+    // Оптимизированная очистка: удаляем только критичные модули БД (не все сервисы!)
+    // Очистка всех модулей с 'services' слишком медленная и не нужна
+    const criticalKeys = Object.keys(require.cache).filter(key => 
+        (key.includes('/db/') || key.includes('\\db\\')) || 
+        (key.includes('/database') || key.includes('\\database'))
+    );
+    criticalKeys.forEach(key => {
+        try {
+            delete require.cache[key];
+        } catch (e) {
+            // Игнорируем ошибки
+        }
+    });
+
+    // Переоткрываем соединения с БД перед перезагрузкой сервисов
+    try {
+        const dbModule = require('./db');
+        if (dbModule.reconnectDatabase) {
+            dbModule.reconnectDatabase();
+        }
+        if (dbModule.setForceReconnect) {
+            dbModule.setForceReconnect();
+        }
+    } catch (e) {
+        // Игнорируем
+    }
+
+    // Перезагружаем сервисы ПОСЛЕ переоткрытия соединений (синхронно)
+    // Это гарантирует, что сервисы получат уже открытые соединения с восстановленной БД
     loadServices();
-    console.log('[MAIN] Services reloaded successfully');
+
+    // Убрали лог успешной перезагрузки - это происходит слишком часто
 }
 
 // Первоначальная загрузка сервисов
@@ -341,15 +370,12 @@ registerIpcHandler(IPC_CHANNELS.REPORTS.GET_ALL_MATERIALS, () => reportsService.
 registerIpcHandler(IPC_CHANNELS.REPORTS.GET_OVERALL_STATS, () => reportsService.getOverallStats());
 
 // ---------- Резервное копирование и восстановление БД ----------
-registerIpcHandler(IPC_CHANNELS.BACKUP.EXPORT, () => backupService.exportDatabase());
-registerIpcHandler(IPC_CHANNELS.BACKUP.EXPORT_TO_EXE_DIR, () => backupService.exportDatabaseToExeDir());
-registerIpcHandler(IPC_CHANNELS.BACKUP.IMPORT, (filePath: string | null) => backupService.importDatabase(filePath));
+registerIpcHandler(IPC_CHANNELS.BACKUP.EXPORT_TO_FILE, (savePath: string) => backupService.exportDatabaseToFile(savePath));
 registerIpcHandler(IPC_CHANNELS.BACKUP.IMPORT_FROM_FILE, (filePath: string) => backupService.importDatabaseFromFile(filePath));
-registerIpcHandler(IPC_CHANNELS.BACKUP.CREATE_AUTO_BACKUP, () => backupService.createAutoBackup());
 registerIpcHandler(IPC_CHANNELS.BACKUP.GET_BACKUP_LIST, () => backupService.getBackupList());
 registerIpcHandler(IPC_CHANNELS.BACKUP.DELETE_BACKUP, (filePath: string) => backupService.deleteBackup(filePath));
 registerIpcHandler(IPC_CHANNELS.BACKUP.GET_EXE_DIRECTORY, () => backupService.getExeDirectory());
-registerIpcHandler(IPC_CHANNELS.BACKUP.CLEANUP_OLD_FILES, () => backupService.cleanupOldBackupFiles());
+registerIpcHandler(IPC_CHANNELS.BACKUP.GET_CURRENT_DATABASE_INFO, () => backupService.getCurrentDatabaseInfo());
 
 // ---------- Диалоги выбора файлов ----------
 registerIpcHandler(IPC_CHANNELS.DIALOG.SHOW_OPEN_DIALOG, async (event: IpcMainInvokeEvent, options?: Electron.OpenDialogOptions) => {

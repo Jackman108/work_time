@@ -89,15 +89,12 @@ const REPORTS = {
  * IPC каналы для резервного копирования и восстановления БД
  */
 const BACKUP = {
-  EXPORT: 'backup:export',
-  EXPORT_TO_EXE_DIR: 'backup:exportToExeDir',
-  IMPORT: 'backup:import',
+  EXPORT_TO_FILE: 'backup:exportToFile',
   IMPORT_FROM_FILE: 'backup:importFromFile',
-  CREATE_AUTO_BACKUP: 'backup:createAutoBackup',
   GET_BACKUP_LIST: 'backup:getBackupList',
   DELETE_BACKUP: 'backup:deleteBackup',
   GET_EXE_DIRECTORY: 'backup:getExeDirectory',
-  CLEANUP_OLD_FILES: 'backup:cleanupOldFiles'
+  GET_CURRENT_DATABASE_INFO: 'backup:getCurrentDatabaseInfo'
 } as const;
 
 /**

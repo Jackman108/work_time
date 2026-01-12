@@ -19,6 +19,13 @@ db/app_corrupted_*.db
 db/*.backup.*
 db/*.rollback.*
 
+# Database files in dist-main (should not be used, but ignore them if they exist)
+dist-main/db/*.db
+dist-main/db/*.db-shm
+dist-main/db/*.db-wal
+dist-main/db/backups/*
+dist-main/db/*.corrupted.*
+
 # Environment
 .env
 .env.local

@@ -46,6 +46,14 @@ export function createProject(data: Types.ProjectCreateData): Types.Project {
         throw new Error('Failed to create project');
     }
 
+    console.log(`[DB] Создан проект: ID=${result.id}, название="${data.name}"`);
+
+    // Обновляем время модификации БД для обновления соединения
+    const dbModule = require('../db');
+    if (dbModule.updateLastDbModTime) {
+        dbModule.updateLastDbModTime();
+    }
+
     return mapToApiFormat(result);
 }
 
@@ -77,6 +85,7 @@ export function updateProject(id: number, data: Types.ProjectUpdateData): Types.
         throw new Error('Project not found');
     }
 
+    console.log(`[DB] Обновлен проект: ID=${id}, название="${result.name}"`);
     return mapToApiFormat(result);
 }
 
@@ -86,8 +95,16 @@ export function updateProject(id: number, data: Types.ProjectUpdateData): Types.
  * @returns {boolean} true, если проект удалён
  */
 export function deleteProject(id: number): boolean {
+    // Получаем информацию о проекте перед удалением для лога
+    const project = getProjectById(id);
     const result = db.delete(projects).where(eq(projects.id, id)).returning().get();
-    return !!result;
+    const deleted = !!result;
+
+    if (deleted && project) {
+        console.log(`[DB] Удален проект: ID=${id}, название="${project.name}"`);
+    }
+
+    return deleted;
 }
 
 /**

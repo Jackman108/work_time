@@ -26,8 +26,8 @@ const DB_DIR = isPortable
     : path.join(projectRoot, 'db');
 const DB_PATH = path.join(DB_DIR, 'app.db');
 
-// Логирование для диагностики
-if (process.env.APP_IS_PACKAGED === 'true') {
+// Логирование только в режиме разработки
+if (process.env.NODE_ENV === 'development' && process.env.APP_IS_PACKAGED === 'true') {
     console.log('[DB] Portable mode:', !!isPortable);
     console.log('[DB] DB_DIR:', DB_DIR);
     console.log('[DB] DB_PATH:', DB_PATH);
@@ -90,9 +90,8 @@ function cleanupOldDatabaseFiles(): void {
                         try {
                             fs.unlinkSync(filePath);
                             deletedCount++;
-                            console.log(`[DB] Deleted old temporary file: ${file}`);
                         } catch (e) {
-                            console.warn(`[DB] Could not delete file ${file}:`, (e as Error).message);
+                            // Игнорируем ошибки удаления временных файлов
                         }
                     }
                 }
@@ -101,9 +100,7 @@ function cleanupOldDatabaseFiles(): void {
             }
         });
 
-        if (deletedCount > 0) {
-            console.log(`[DB] Cleanup completed: ${deletedCount} old file(s) deleted`);
-        }
+        // Очистка завершена
     } catch (error) {
         console.error('[DB] Error during cleanup:', (error as Error).message);
     }
@@ -138,7 +135,6 @@ function backupCorruptedDatabase(filePath: string): void {
         const corruptedBackupPath = path.join(DB_DIR, `app_corrupted_${Date.now()}.db`);
         if (fs.existsSync(filePath)) {
             fs.copyFileSync(filePath, corruptedBackupPath);
-            console.warn(`[DB] Corrupted database file saved as: ${corruptedBackupPath}`);
         }
     } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -156,19 +152,16 @@ if (fs.existsSync(DB_PATH)) {
         backupCorruptedDatabase(DB_PATH);
         try {
             fs.unlinkSync(DB_PATH);
-            console.log('[DB] Corrupted database file deleted, new database will be created');
         } catch (error) {
             const err = error as Error & { code?: string };
             if (err.code === 'EBUSY') {
                 const corruptedPath = path.join(DB_DIR, `app_corrupted_${Date.now()}.db`);
                 try {
                     fs.renameSync(DB_PATH, corruptedPath);
-                    console.log(`[DB] Corrupted database file renamed to: ${corruptedPath}`);
                 } catch (renameError) {
                     const renameErr = renameError instanceof Error ? renameError : new Error(String(renameError));
                     console.error('[DB] Failed to rename corrupted database file:', renameErr.message);
                     dbPathToUse = path.join(DB_DIR, `app_temp_${Date.now()}.db`);
-                    console.warn(`[DB] Using temporary database path: ${dbPathToUse}`);
                 }
             } else {
                 console.error('[DB] Error deleting corrupted database file:', err.message);
@@ -183,7 +176,6 @@ try {
     db = new Database(dbPathToUse) as ExtendedDatabase;
     if (db) {
         db.pragma('foreign_keys = ON');
-        console.log(`[DB] Database successfully opened: ${dbPathToUse}`);
     }
 } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -193,7 +185,6 @@ try {
             backupCorruptedDatabase(dbPathToUse);
             try {
                 fs.unlinkSync(dbPathToUse);
-                console.log('[DB] Corrupted database file deleted');
                 dbPathToUse = DB_PATH;
             } catch (unlinkError) {
                 const unlinkErr = unlinkError as Error & { code?: string };
@@ -201,13 +192,11 @@ try {
                     const corruptedPath = path.join(DB_DIR, `app_corrupted_${Date.now()}.db`);
                     try {
                         fs.renameSync(dbPathToUse, corruptedPath);
-                        console.log(`[DB] Corrupted database file renamed to: ${corruptedPath}`);
                         dbPathToUse = DB_PATH;
                     } catch (renameError) {
                         const renameErr = renameError instanceof Error ? renameError : new Error(String(renameError));
                         console.error('[DB] Failed to rename corrupted database file:', renameErr.message);
                         dbPathToUse = path.join(DB_DIR, `app_temp_${Date.now()}.db`);
-                        console.warn(`[DB] Using temporary database path: ${dbPathToUse}`);
                     }
                 } else {
                     throw unlinkErr;
@@ -218,7 +207,6 @@ try {
             db = new Database(dbPathToUse) as ExtendedDatabase;
             if (db) {
                 db.pragma('foreign_keys = ON');
-                console.log(`[DB] New database created after corruption detected: ${dbPathToUse}`);
             }
         } catch (createError) {
             const createErr = createError instanceof Error ? createError : new Error(String(createError));
@@ -286,7 +274,6 @@ export function closeDatabase(): void {
     if (db) {
         try {
             db.close();
-            console.log('[DB] Database connection closed');
             db = null;
         } catch (error) {
             const err = error instanceof Error ? error : new Error(String(error));
@@ -303,12 +290,35 @@ export function reopenDatabase(): ExtendedDatabase {
     // Всегда закрываем старое соединение перед переоткрытием
     if (db) {
         try {
+            // Применяем checkpoint перед закрытием, чтобы все изменения были записаны
+            try {
+                db.pragma('wal_checkpoint(FULL)');
+            } catch (e) {
+                // Игнорируем ошибки checkpoint
+            }
             db.close();
-            console.log('[DB] Old database connection closed');
         } catch (e) {
             // Игнорируем ошибки закрытия
         }
         db = null;
+    }
+
+    // Удаляем WAL и SHM файлы перед переоткрытием
+    const walPath = dbPathToUse + '-wal';
+    const shmPath = dbPathToUse + '-shm';
+    if (fs.existsSync(walPath)) {
+        try {
+            fs.unlinkSync(walPath);
+        } catch (e) {
+            // Игнорируем ошибки удаления
+        }
+    }
+    if (fs.existsSync(shmPath)) {
+        try {
+            fs.unlinkSync(shmPath);
+        } catch (e) {
+            // Игнорируем ошибки удаления
+        }
     }
 
     try {
@@ -317,7 +327,6 @@ export function reopenDatabase(): ExtendedDatabase {
             throw new Error(`Database file not found: ${dbPathToUse}`);
         }
 
-        console.log(`[DB] Opening database: ${dbPathToUse}`);
         db = new Database(dbPathToUse) as ExtendedDatabase;
         db.pragma('foreign_keys = ON');
 
@@ -329,7 +338,6 @@ export function reopenDatabase(): ExtendedDatabase {
         // Проверяем соединение сразу после открытия
         try {
             db.prepare('SELECT 1').get();
-            console.log('[DB] Database connection verified');
         } catch (e) {
             const err = e instanceof Error ? e : new Error(String(e));
             console.error('[DB] Error verifying connection:', err.message);
@@ -340,14 +348,12 @@ export function reopenDatabase(): ExtendedDatabase {
         try {
             initDB();
         } catch (migrationError) {
-            const migrationErr = migrationError instanceof Error ? migrationError : new Error(String(migrationError));
-            console.warn('[DB] Migration warning during reopen:', migrationErr.message);
+            // Игнорируем предупреждения миграции
         }
 
         const moduleId = require.resolve('./database');
         delete require.cache[moduleId];
 
-        console.log(`[DB] Database reopened successfully: ${dbPathToUse}`);
         return db;
     } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));

@@ -58,15 +58,12 @@ const IPC_CHANNELS = {
     GET_OVERALL_STATS: 'reports:getOverallStats'
   },
   BACKUP: {
-    EXPORT: 'backup:export',
-    EXPORT_TO_EXE_DIR: 'backup:exportToExeDir',
-    IMPORT: 'backup:import',
+    EXPORT_TO_FILE: 'backup:exportToFile',
     IMPORT_FROM_FILE: 'backup:importFromFile',
-    CREATE_AUTO_BACKUP: 'backup:createAutoBackup',
     GET_BACKUP_LIST: 'backup:getBackupList',
     DELETE_BACKUP: 'backup:deleteBackup',
     GET_EXE_DIRECTORY: 'backup:getExeDirectory',
-    CLEANUP_OLD_FILES: 'backup:cleanupOldFiles'
+    GET_CURRENT_DATABASE_INFO: 'backup:getCurrentDatabaseInfo'
   },
   DIALOG: {
     SHOW_OPEN_DIALOG: 'dialog:showOpenDialog',
@@ -293,29 +290,17 @@ export async function getOverallStats(): Promise<OverallStats> {
 
 // ============ Резервное копирование ============
 
-export async function exportDatabase(): Promise<BackupResult> {
-  return safeInvoke<BackupResult>(IPC_CHANNELS.BACKUP.EXPORT);
-}
-
-export async function exportDatabaseToExeDir(): Promise<BackupResult> {
-  return safeInvoke<BackupResult>(IPC_CHANNELS.BACKUP.EXPORT_TO_EXE_DIR);
-}
-
-export async function importDatabase(filePath?: string | null): Promise<BackupResult> {
-  return safeInvoke<BackupResult>(IPC_CHANNELS.BACKUP.IMPORT, filePath || undefined);
+export async function exportDatabaseToFile(savePath: string): Promise<BackupResult> {
+  return safeInvoke<BackupResult>(IPC_CHANNELS.BACKUP.EXPORT_TO_FILE, savePath);
 }
 
 export async function importDatabaseFromFile(filePath: string | null): Promise<BackupResult> {
   return safeInvoke<BackupResult>(IPC_CHANNELS.BACKUP.IMPORT_FROM_FILE, filePath);
 }
 
-export async function createAutoBackup(): Promise<BackupResult> {
-  return safeInvoke<BackupResult>(IPC_CHANNELS.BACKUP.CREATE_AUTO_BACKUP);
-}
-
 interface BackupListResult {
   success: boolean;
-  backups: Array<{ name: string; path: string; date: string; size: number }>;
+  backups: Array<{ path: string; createdAt: string; hash: string }>;
   message?: string;
 }
 
@@ -331,14 +316,15 @@ export async function getExeDirectory(): Promise<string> {
   return safeInvoke<string>(IPC_CHANNELS.BACKUP.GET_EXE_DIRECTORY);
 }
 
-interface CleanupResult {
-  deletedCount: number;
-  message: string;
+interface DatabaseInfo {
+  name: string;
+  path: string;
 }
 
-export async function cleanupOldBackupFiles(): Promise<CleanupResult> {
-  return safeInvoke<CleanupResult>(IPC_CHANNELS.BACKUP.CLEANUP_OLD_FILES);
+export async function getCurrentDatabaseInfo(): Promise<DatabaseInfo> {
+  return safeInvoke<DatabaseInfo>(IPC_CHANNELS.BACKUP.GET_CURRENT_DATABASE_INFO);
 }
+
 
 // ============ Диалоги ============
 
