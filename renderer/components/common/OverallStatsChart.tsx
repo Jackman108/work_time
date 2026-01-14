@@ -2,7 +2,6 @@
  * График общей статистики
  */
 
-import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useIsMobile } from '@renderer/hooks';
 import type { OverallStats } from '@renderer/types';
@@ -54,7 +53,7 @@ export default function OverallStatsChart({ overallStats }: OverallStatsChartPro
                 return `${name}: ${(percent * 100).toFixed(0)}%`;
               }}
             >
-              {chartData.map((entry, index) => (
+              {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>

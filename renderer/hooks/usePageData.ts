@@ -112,7 +112,7 @@ export function usePageData<T extends { id: number }>(config: UsePageDataConfig<
 
     useEffect(() => {
         loadData();
-    }, [loadData]);
+    }, [loadData, ...dependencies]);
 
     return {
         items,

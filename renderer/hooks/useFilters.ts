@@ -2,7 +2,7 @@
  * Хук для управления фильтрами на страницах
  */
 
-import { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import { useState, useCallback } from 'react';
 
 interface UseFiltersReturn<T> {
   filters: T;

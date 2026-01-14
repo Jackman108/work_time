@@ -2,7 +2,7 @@
  * Диалог подтверждения с хуком для управления
  */
 
-import React, { useState, useCallback, ReactElement } from 'react';
+import { useState, useCallback, ReactElement } from 'react';
 import type { ConfirmOptions, ConfirmDialogState, ConfirmDialogType } from '@renderer/types';
 
 interface ConfirmDialogProps {

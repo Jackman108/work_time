@@ -2,7 +2,7 @@
  * Система уведомлений (Toast) для приложения
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { Notification, NotificationTypeValue, NotificationContextValue } from '@renderer/types';
 
 export const NotificationType = {

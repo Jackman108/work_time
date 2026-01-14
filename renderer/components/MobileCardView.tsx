@@ -10,7 +10,7 @@
  * - Оптимизация для маленьких экранов
  */
 
-import React, { ReactElement, ReactNode } from 'react';
+import { ReactElement, ReactNode, useEffect, useState } from 'react';
 
 /**
  * Конфигурация колонки для карточки
@@ -180,9 +180,9 @@ export default function MobileCardView<T extends Record<string, any>>({
  * @deprecated Используйте useIsMobile из @renderer/hooks
  */
 export function useIsMobileFromCardView(): boolean {
-  const [isMobile, setIsMobile] = React.useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };

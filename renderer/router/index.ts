@@ -2,7 +2,6 @@
  * Роутер приложения
  */
 
-import React from 'react';
 import ProjectsPage from '@renderer/components/pages/ProjectsPage';
 import EmployeesPage from '@renderer/components/pages/EmployeesPage';
 import MaterialsPage from '@renderer/components/pages/MaterialsPage';

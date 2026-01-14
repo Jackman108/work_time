@@ -2,7 +2,6 @@
  * График по сотрудникам
  */
 
-import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useIsMobile } from '@renderer/hooks';
 import type { EmployeeReport } from '@renderer/types';

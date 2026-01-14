@@ -2,7 +2,7 @@
  * Компонент индикатора загрузки
  */
 
-import React, { ReactElement } from 'react';
+import { ReactElement } from 'react';
 
 type SpinnerSize = 'sm' | 'md' | 'lg';
 

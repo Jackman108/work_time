@@ -2,7 +2,7 @@
  * Компонент навигации
  */
 
-import React, { ReactElement } from 'react';
+import { ReactElement } from 'react';
 import { getAllRoutes, getRouteConfig } from '@renderer/router';
 import { ROUTES } from '@renderer/constants';
 
