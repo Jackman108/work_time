@@ -51,7 +51,7 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps):
   }));
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
+    <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top d-none d-md-block">
       <div className="container-fluid">
         <span className="navbar-brand d-flex align-items-center">
           <span className="me-2">🏗️</span>

@@ -8,6 +8,8 @@ import { getProjects, createProject, updateProject, deleteProject } from '@rende
 import { formatCurrency, formatDate } from '@renderer/utils/formatters';
 import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
 import FormValidator from '@renderer/utils/formValidator';
+import MobileCardView, { type CardColumnConfig } from '@renderer/components/MobileCardView';
+import MobileFormModal from '@renderer/components/MobileFormModal';
 import type { Project, ProjectFormData } from '@renderer/types';
 
 const initialFormData: ProjectFormData = {
@@ -125,18 +127,74 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Управление объектами</h1>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }} disabled={loading}>
-          + Добавить объект
+    <div className="container mt-2 mt-md-4">
+      <div className="d-flex justify-content-between align-items-center mb-3 mb-md-4">
+        <h1 className="h3 h-md-1 mb-0">Управление объектами</h1>
+        <button 
+          className="btn btn-primary" 
+          onClick={() => { resetForm(); setShowForm(true); }} 
+          disabled={loading}
+          style={{ minWidth: '44px', minHeight: '44px' }}
+        >
+          <i className="bi bi-plus-lg d-md-none"></i>
+          <span className="d-none d-md-inline">+ Добавить объект</span>
+          <span className="d-md-none">Добавить</span>
         </button>
       </div>
 
       <PageLoadingSpinner loading={loading} itemsCount={projects.length} />
 
+      {/* Форма в модальном окне на мобильных, в карточке на desktop */}
+      <MobileFormModal
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingItem ? 'Редактирование объекта' : 'Новый объект'}
+        className="d-md-none"
+      >
+        <FormErrors errors={formErrors} />
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">Название *</label>
+            <input type="text" className={getFieldClasses('name', formErrors)} name="name" value={formData.name} onChange={handleInputChange} required />
+            <FieldError error={formErrors.name || ''} show={!!formErrors.name} />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Адрес *</label>
+            <input type="text" className={getFieldClasses('address', formErrors)} name="address" value={formData.address} onChange={handleInputChange} required />
+            <FieldError error={formErrors.address || ''} show={!!formErrors.address} />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Бюджет *</label>
+            <input type="number" step="0.01" className={getFieldClasses('budget', formErrors)} name="budget" value={formData.budget} onChange={handleInputChange} required />
+            <FieldError error={formErrors.budget || ''} show={!!formErrors.budget} />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Дата начала</label>
+            <input type="date" className="form-control" name="start_date" value={formData.start_date} onChange={handleInputChange} />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Дата окончания</label>
+            <input type="date" className={getFieldClasses('end_date', formErrors)} name="end_date" value={formData.end_date} onChange={handleInputChange} />
+            <FieldError error={formErrors.end_date || ''} show={!!formErrors.end_date} />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Описание</label>
+            <textarea className="form-control" name="description" value={formData.description} onChange={handleInputChange} rows={3} />
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary btn-lg">
+              {editingItem ? 'Сохранить' : 'Создать'}
+            </button>
+            <button type="button" className="btn btn-secondary btn-lg" onClick={resetForm}>
+              Отмена
+            </button>
+          </div>
+        </form>
+      </MobileFormModal>
+
+      {/* Desktop форма (в карточке) */}
       {showForm && (
-        <div className="card mb-4">
+        <div className="card mb-4 d-none d-md-block">
           <div className="card-header">
             <h5 className="mb-0">{editingItem ? 'Редактирование объекта' : 'Новый объект'}</h5>
           </div>
@@ -190,39 +248,86 @@ export default function ProjectsPage() {
 
       {projects.length > 0 && (
         <div className="card">
-          <div className="card-body">
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Название</th>
-                    <th>Адрес</th>
-                    <th>Бюджет</th>
-                    <th>Даты</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projects.map(project => (
-                    <tr key={project.id}>
-                      <td>{project.name}</td>
-                      <td>{project.address}</td>
-                      <td>{formatCurrency(project.budget)}</td>
-                      <td>
-                        {project.start_date && formatDate(project.start_date)}
-                        {project.start_date && project.end_date && ' - '}
-                        {project.end_date && formatDate(project.end_date)}
-                        {!project.start_date && !project.end_date && '-'}
-                      </td>
-                      <td>
-                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => setEditingItem(project)}>Редактировать</button>
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(project.id)}>Удалить</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="card-body p-0 p-md-3">
+            {/* Конфигурация колонок для MobileCardView */}
+            {(() => {
+              const columns: CardColumnConfig[] = [
+                {
+                  key: 'name',
+                  label: 'Название',
+                  priority: 1,
+                  fullWidth: true
+                },
+                {
+                  key: 'address',
+                  label: 'Адрес',
+                  cardLabel: 'Адрес',
+                  priority: 2,
+                  fullWidth: true
+                },
+                {
+                  key: 'budget',
+                  label: 'Бюджет',
+                  cardLabel: 'Бюджет',
+                  priority: 3,
+                  format: (value) => formatCurrency(value)
+                },
+                {
+                  key: 'dates',
+                  label: 'Даты',
+                  cardLabel: 'Период',
+                  priority: 4,
+                  fullWidth: true,
+                  format: (_, item) => {
+                    if (item.start_date && item.end_date) {
+                      return `${formatDate(item.start_date)} - ${formatDate(item.end_date)}`;
+                    }
+                    if (item.start_date) {
+                      return `С ${formatDate(item.start_date)}`;
+                    }
+                    if (item.end_date) {
+                      return `До ${formatDate(item.end_date)}`;
+                    }
+                    return '-';
+                  }
+                }
+              ];
+
+              return (
+                <MobileCardView
+                  data={projects.map(p => ({ ...p, dates: null }))} // dates вычисляется в format
+                  columns={columns}
+                  keyField="id"
+                  renderActions={(project) => (
+                    <>
+                      <button 
+                        className="btn btn-outline-primary" 
+                        onClick={() => setEditingItem(project)}
+                        style={{ minWidth: 'auto', flex: 1 }}
+                      >
+                        <i className="bi bi-pencil me-1"></i>
+                        <span className="d-none d-sm-inline">Редактировать</span>
+                        <span className="d-sm-none">Изменить</span>
+                      </button>
+                      <button 
+                        className="btn btn-outline-danger" 
+                        onClick={() => handleDelete(project.id)}
+                        style={{ minWidth: 'auto', flex: 1 }}
+                      >
+                        <i className="bi bi-trash me-1"></i>
+                        <span className="d-none d-sm-inline">Удалить</span>
+                        <span className="d-sm-none">Удалить</span>
+                      </button>
+                    </>
+                  )}
+                  emptyState={
+                    <div className="alert alert-info m-3">
+                      Объекты не найдены. Создайте первый объект.
+                    </div>
+                  }
+                />
+              );
+            })()}
           </div>
         </div>
       )}

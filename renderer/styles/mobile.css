@@ -1,0 +1,402 @@
+/**
+ * Мобильные стили для адаптации веб-версии под смартфоны и планшеты
+ * 
+ * Принципы:
+ * - Mobile First подход
+ * - Touch-friendly элементы (минимум 44x44px)
+ * - Оптимизация для маленьких экранов
+ * - Производительность и плавность
+ */
+
+/* ============ Базовые мобильные оптимизации ============ */
+
+/**
+ * Предотвращение выделения текста при тапе (для лучшего UX)
+ * Но оставляем возможность выделения для важного контента
+ */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  -webkit-touch-callout: default;
+}
+
+/* Улучшение рендеринга на мобильных */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============ Touch-friendly элементы ============ */
+
+/**
+ * Минимальный размер для touch-элементов (рекомендация Apple: 44x44px)
+ */
+.btn,
+.nav-link,
+input[type="button"],
+input[type="submit"],
+button:not(.btn-sm):not(.btn-xs) {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 1rem;
+}
+
+/* Увеличенные отступы для touch-элементов на мобильных */
+@media (max-width: 768px) {
+  .btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+  
+  /* Увеличенные отступы между кнопками */
+  .btn + .btn {
+    margin-left: 0.5rem;
+  }
+  
+  /* Увеличенные input поля для удобства ввода */
+  .form-control,
+  .form-select {
+    min-height: 44px;
+    font-size: 16px; /* Предотвращает zoom на iOS при фокусе */
+    padding: 0.75rem;
+  }
+  
+  /* Увеличенные label для лучшей читаемости */
+  .form-label {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+}
+
+/* ============ Адаптация навигации ============ */
+
+/**
+ * Мобильная навигация - drawer/sidebar стиль
+ */
+@media (max-width: 991px) {
+  /* Скрываем стандартную навигацию на мобильных */
+  .navbar-nav {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .nav-item {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+  
+  .nav-link {
+    width: 100%;
+    text-align: left;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Улучшенный toggler для мобильных */
+  .navbar-toggler {
+    padding: 0.5rem;
+    border: none;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ============ Адаптация таблиц ============ */
+
+/**
+ * На мобильных устройствах таблицы заменяются на карточки
+ * Это обеспечивает лучшую читаемость и удобство использования
+ */
+@media (max-width: 768px) {
+  /* Скрываем таблицы на мобильных */
+  .table-responsive .table {
+    display: none;
+  }
+  
+  /* Показываем карточки вместо таблиц */
+  .mobile-card-view {
+    display: block;
+  }
+  
+  /* Стили для карточек данных */
+  .data-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .data-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .data-card-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  
+  .data-card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .data-card-field {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .data-card-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+  }
+  
+  .data-card-value {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #212529;
+  }
+  
+  .data-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #dee2e6;
+  }
+  
+  .data-card-actions .btn {
+    flex: 1;
+    min-width: auto;
+  }
+  
+  /* Полная ширина для важных полей */
+  .data-card-field.full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+/* На desktop показываем таблицы, скрываем карточки */
+@media (min-width: 769px) {
+  .mobile-card-view {
+    display: none;
+  }
+  
+  .table-responsive .table {
+    display: table;
+  }
+}
+
+/* ============ Адаптация форм ============ */
+
+@media (max-width: 768px) {
+  /* Формы на полную ширину на мобильных */
+  .card-body form {
+    padding: 0;
+  }
+  
+  /* Убираем колонки в формах на мобильных */
+  .row .col-md-6,
+  .row .col-md-4 {
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+  
+  /* Модальные окна для форм на мобильных */
+  .form-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 1050;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  
+  /* Улучшенные кнопки действий в формах */
+  .form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 1rem 0;
+    border-top: 1px solid #dee2e6;
+  }
+  
+  .form-actions .btn {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* ============ Адаптация графиков ============ */
+
+@media (max-width: 768px) {
+  /* Графики на полную ширину на мобильных */
+  .recharts-wrapper {
+    width: 100% !important;
+    max-width: 100%;
+  }
+  
+  /* Уменьшаем размеры графиков для мобильных */
+  .chart-container {
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+  
+  /* Скрываем легенды на очень маленьких экранах */
+  @media (max-width: 480px) {
+    .recharts-legend-wrapper {
+      display: none;
+    }
+  }
+}
+
+/* ============ Улучшения для маленьких экранов ============ */
+
+@media (max-width: 480px) {
+  /* Уменьшаем отступы контейнера */
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* Компактные заголовки */
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+  }
+  
+  /* Компактные карточки */
+  .card {
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+  }
+  
+  .card-header {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+}
+
+/* ============ Оптимизация производительности ============ */
+
+/**
+ * Использование will-change для плавной анимации
+ * (только для элементов, которые анимируются)
+ */
+.navbar-collapse,
+.modal,
+.fade {
+  will-change: transform, opacity;
+}
+
+/* Отключение анимаций для пользователей, предпочитающих уменьшенное движение */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============ Улучшения для планшетов ============ */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Средние размеры для планшетов */
+  .container {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Гибридный подход: таблицы с улучшенным отображением */
+  .table-responsive {
+    font-size: 0.95rem;
+  }
+}
+
+/* ============ Утилиты для мобильных ============ */
+
+/**
+ * Класс для скрытия элементов на мобильных
+ */
+@media (max-width: 768px) {
+  .d-mobile-none {
+    display: none !important;
+  }
+}
+
+/**
+ * Класс для показа элементов только на мобильных
+ */
+.d-mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .d-mobile-only {
+    display: block !important;
+  }
+}
+
+/* ============ Улучшения для iOS Safari ============ */
+
+@supports (-webkit-touch-callout: none) {
+  /* Специфичные стили для iOS */
+  body {
+    /* Предотвращение bounce-эффекта при скролле */
+    overscroll-behavior-y: none;
+  }
+  
+  /* Улучшение input полей на iOS */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="tel"],
+  textarea,
+  select {
+    /* Предотвращение zoom при фокусе */
+    font-size: 16px !important;
+  }
+}
+
+/* ============ Улучшения для Android Chrome ============ */
+
+/* Оптимизация для Android браузеров */
+@media screen and (-webkit-min-device-pixel-ratio: 2) {
+  /* Улучшение рендеринга на Retina экранах */
+  body {
+    -webkit-font-smoothing: antialiased;
+  }
+}

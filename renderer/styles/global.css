@@ -1,3 +1,15 @@
-body { background: #f3f6fa !important; }
-.table-striped > tbody > tr:nth-of-type(odd) { background-color: #e9f2fb; }
+/**
+ * Глобальные стили приложения
+ */
+
+/* Импорт мобильных стилей - должен быть в начале файла */
+@import './mobile.css';
+
+body { 
+  background: #f3f6fa !important; 
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) { 
+  background-color: #e9f2fb; 
+}
 

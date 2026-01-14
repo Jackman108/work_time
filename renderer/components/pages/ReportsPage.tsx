@@ -18,7 +18,7 @@ import {
   MaterialsPieChart,
   OverallStatsChart
 } from '@renderer/components/common';
-import { formatCurrency, formatDate } from '@renderer/utils/formatters';
+import { formatCurrency } from '@renderer/utils/formatters';
 import type { ProjectReport, EmployeeReport, MaterialReport, OverallStats } from '@renderer/types';
 
 type ReportType = 'overall' | 'projects' | 'employees' | 'materials';
@@ -33,7 +33,7 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCharts, setShowCharts] = useState(true);
-  const { showError, showSuccess } = useNotifications();
+  const { showError } = useNotifications();
 
   useEffect(() => {
     loadOverallStats();
@@ -318,46 +318,87 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="container mt-4">
-      <h1 className="mb-4">📊 Отчёты и аналитика</h1>
+    <div className="container mt-2 mt-md-4">
+      <h1 className="h3 h-md-1 mb-3 mb-md-4">📊 Отчёты и аналитика</h1>
 
-      <div className="mb-4">
-        <div className="btn-group" role="group">
-          <button 
-            className={`btn ${activeReport === 'overall' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setActiveReport('overall')}
-          >
-            📈 Общая статистика
-          </button>
-          <button 
-            className={`btn ${activeReport === 'projects' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setActiveReport('projects')}
-          >
-            🏗️ Объекты
-          </button>
-          <button 
-            className={`btn ${activeReport === 'employees' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setActiveReport('employees')}
-          >
-            👷 Сотрудники
-          </button>
-          <button 
-            className={`btn ${activeReport === 'materials' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setActiveReport('materials')}
-          >
-            📦 Материалы
-          </button>
+      <div className="mb-3 mb-md-4">
+        {/* Мобильная навигация по отчётам (вертикальная) */}
+        <div className="d-md-none mb-3">
+          <div className="d-grid gap-2">
+            <button 
+              className={`btn ${activeReport === 'overall' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('overall')}
+              style={{ minHeight: '44px' }}
+            >
+              📈 Общая статистика
+            </button>
+            <button 
+              className={`btn ${activeReport === 'projects' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('projects')}
+              style={{ minHeight: '44px' }}
+            >
+              🏗️ Объекты
+            </button>
+            <button 
+              className={`btn ${activeReport === 'employees' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('employees')}
+              style={{ minHeight: '44px' }}
+            >
+              👷 Сотрудники
+            </button>
+            <button 
+              className={`btn ${activeReport === 'materials' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('materials')}
+              style={{ minHeight: '44px' }}
+            >
+              📦 Материалы
+            </button>
+          </div>
         </div>
 
-        <div className="form-check form-switch d-inline-block ms-4">
+        {/* Desktop навигация по отчётам (горизонтальная) */}
+        <div className="d-none d-md-block mb-3">
+          <div className="btn-group" role="group">
+            <button 
+              className={`btn ${activeReport === 'overall' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('overall')}
+            >
+              📈 Общая статистика
+            </button>
+            <button 
+              className={`btn ${activeReport === 'projects' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('projects')}
+            >
+              🏗️ Объекты
+            </button>
+            <button 
+              className={`btn ${activeReport === 'employees' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('employees')}
+            >
+              👷 Сотрудники
+            </button>
+            <button 
+              className={`btn ${activeReport === 'materials' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveReport('materials')}
+            >
+              📦 Материалы
+            </button>
+          </div>
+        </div>
+
+        {/* Переключатель графиков */}
+        <div className="form-check form-switch d-inline-block ms-0 ms-md-4">
           <input 
             className="form-check-input" 
             type="checkbox" 
             id="showCharts" 
             checked={showCharts}
             onChange={e => setShowCharts(e.target.checked)}
+            style={{ minWidth: '44px', minHeight: '44px' }}
           />
-          <label className="form-check-label" htmlFor="showCharts">Показать графики</label>
+          <label className="form-check-label ms-2" htmlFor="showCharts" style={{ fontSize: '1rem' }}>
+            Показать графики
+          </label>
         </div>
       </div>
 

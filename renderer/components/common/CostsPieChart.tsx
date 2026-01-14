@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useIsMobile } from '@renderer/hooks';
 import type { ProjectReport } from '@renderer/types';
 
 interface CostsPieChartProps {
@@ -13,6 +14,8 @@ interface CostsPieChartProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export default function CostsPieChart({ data }: CostsPieChartProps) {
+  const isMobile = useIsMobile();
+
   if (!data || data.length === 0) {
     return <div className="alert alert-info">Нет данных для отображения</div>;
   }
@@ -31,25 +34,38 @@ export default function CostsPieChart({ data }: CostsPieChartProps) {
       <div className="card-header">
         <h6 className="mb-0">📊 Расходы по объектам</h6>
       </div>
-      <div className="card-body">
-        <ResponsiveContainer width="100%" height={300}>
+      <div className="card-body chart-container">
+        <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
           <PieChart>
             <Pie
               data={chartData}
               cx="50%"
               cy="50%"
               labelLine={false}
-              outerRadius={100}
+              outerRadius={isMobile ? 70 : 100}
               fill="#8884d8"
               dataKey="value"
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => {
+                if (isMobile) {
+                  return `${(percent * 100).toFixed(0)}%`;
+                }
+                return `${name}: ${(percent * 100).toFixed(0)}%`;
+              }}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => value.toLocaleString('ru-RU') + ' ₽'} />
-            <Legend />
+            <Tooltip 
+              formatter={(value: number) => value.toLocaleString('ru-RU') + ' ₽'}
+              contentStyle={{ fontSize: isMobile ? '12px' : '14px' }}
+            />
+            <Legend 
+              wrapperStyle={{ fontSize: isMobile ? '11px' : '14px' }}
+              iconSize={isMobile ? 12 : 14}
+              layout={isMobile ? 'horizontal' : 'vertical'}
+              verticalAlign={isMobile ? 'bottom' : 'middle'}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
