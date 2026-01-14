@@ -2,13 +2,13 @@
  * Страница отчётов и аналитики
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   getAllProjectsReport, 
   getAllEmployeesReport, 
   getAllMaterialsReport, 
   getOverallStats 
-} from '../../api';
+} from '@renderer/api';
 import { 
   useNotifications, 
   LoadingSpinner,
@@ -17,9 +17,9 @@ import {
   EmployeesBarChart,
   MaterialsPieChart,
   OverallStatsChart
-} from '../common';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import type { ProjectReport, EmployeeReport, MaterialReport, OverallStats } from '../../types';
+} from '@renderer/components/common';
+import { formatCurrency, formatDate } from '@renderer/utils/formatters';
+import type { ProjectReport, EmployeeReport, MaterialReport, OverallStats } from '@renderer/types';
 
 type ReportType = 'overall' | 'projects' | 'employees' | 'materials';
 

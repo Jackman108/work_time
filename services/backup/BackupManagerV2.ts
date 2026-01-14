@@ -13,11 +13,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from 'better-sqlite3';
-import { app } from 'electron';
 import { DatabaseConnectionManager } from './DatabaseConnectionManager';
 import { calculateFileHash, removeWalShmFiles, quickValidateFile } from './utils';
-import { getDatabaseDirectory } from '../utils/pathUtils';
-import type { Types } from 'types';
+import { getDatabaseDirectory } from '@services/utils/pathUtils';
+import { getSqliteDb, setForceReconnect } from 'db';
 
 /**
  * Интерфейс для метаданных бэкапа
@@ -188,19 +187,21 @@ export class BackupManagerV2 {
 
     /**
      * Изолировать файл БД: применить checkpoint и удалить WAL/SHM файлы
+     * ПРИМЕЧАНИЕ: Метод не используется в текущей реализации, но оставлен для будущего использования
+     * @deprecated Метод не используется, но сохранён для обратной совместимости
      */
-    private async isolateDatabaseFile(filePath: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // @ts-expect-error - Метод сохранён для будущего использования
+    private async _isolateDatabaseFile(filePath: string): Promise<void> {
         // КРИТИЧНО: Полная изоляция файла БД - удаление всех WAL/SHM файлов
         // Это гарантирует, что файл полностью самодостаточен
 
         // Шаг 1: Применяем checkpoint с обработкой ошибок
         let db: Database.Database | null = null;
-        let checkpointSuccess = false;
 
         try {
             db = new Database(filePath, { readonly: true });
             db.pragma('wal_checkpoint(FULL)');
-            checkpointSuccess = true;
             db.close();
             db = null;
         } catch (e) {
@@ -212,7 +213,6 @@ export class BackupManagerV2 {
                 }
                 db = null;
             }
-            checkpointSuccess = false;
         }
 
         // Шаг 2: Удаляем WAL и SHM файлы (даже если checkpoint не удался)
@@ -220,29 +220,21 @@ export class BackupManagerV2 {
         const shmPath = filePath + '-shm';
 
         // Пытаемся удалить WAL/SHM файлы быстро (без длительных задержек)
-        let walDeleted = false;
         if (fs.existsSync(walPath)) {
             try {
                 fs.unlinkSync(walPath);
-                walDeleted = true;
             } catch (e) {
                 // Игнорируем - файл может быть заблокирован, но это не критично
             }
-        } else {
-            walDeleted = true;
         }
 
         // Пытаемся удалить SHM файл быстро
-        let shmDeleted = false;
         if (fs.existsSync(shmPath)) {
             try {
                 fs.unlinkSync(shmPath);
-                shmDeleted = true;
             } catch (e) {
                 // Игнорируем - файл может быть заблокирован, но это не критично
             }
-        } else {
-            shmDeleted = true;
         }
 
         // Финальная попытка удаления (одна попытка)
@@ -265,7 +257,7 @@ export class BackupManagerV2 {
         // Если файлы все еще существуют после всех попыток, это проблема
         // Но мы продолжаем, так как после переключения в DELETE режим основной файл БД содержит все данные
         if (fs.existsSync(walPath) || fs.existsSync(shmPath)) {
-            console.warn(`[Backup] Предупреждение: не удалось удалить WAL/SHM файлы для ${filePath}, но продолжаем операцию (БД в режиме DELETE)`);
+            console.warn(`[Backup] Warning: Failed to delete WAL/SHM files for ${filePath}, continuing operation (DB in DELETE mode)`);
         }
     }
 
@@ -274,11 +266,9 @@ export class BackupManagerV2 {
      * Использует SQLite backup API для создания полностью изолированной копии
      */
     public async createBackup(customName?: string): Promise<BackupOperationResult> {
-        const sourcePath = this.connectionManager.getDatabasePath();
         const tempBackupPath = path.join(this.backupDir, `temp_backup_${Date.now()}.db`);
         let backupPath: string | null = null;
         let sourceDb: Database.Database | null = null;
-        let backupDb: Database.Database | null = null;
 
         try {
             // Шаг 1: Получаем активное соединение с исходной БД
@@ -313,7 +303,7 @@ export class BackupManagerV2 {
             // Это гарантирует полную изоляцию - каждый бэкап это независимая копия
             const vacuumPath = tempBackupPath.replace(/\\/g, '/').replace(/'/g, "''");
             sourceDb.exec(`VACUUM INTO '${vacuumPath}'`);
-            console.log('[Backup] Бэкап создан через VACUUM INTO - полностью изолированная копия');
+            console.log('[Backup] Backup created via VACUUM INTO - fully isolated copy');
 
             // Шаг 3.1: Переключаем обратно в WAL режим для нормальной работы
             try {
@@ -443,18 +433,10 @@ export class BackupManagerV2 {
             this.connectionManager.forceCloseAll();
 
             try {
-                const dbModule = require('../../db');
-                if (dbModule.getSqliteDb) {
-                    try {
-                        const sqliteDb = dbModule.getSqliteDb();
-                        if (sqliteDb && typeof sqliteDb.close === 'function') {
-                            sqliteDb.close();
-                        }
-                    } catch (e) {
-                        // Игнорируем
-                    }
+                const sqliteDb = getSqliteDb();
+                if (sqliteDb && typeof sqliteDb.close === 'function') {
+                    sqliteDb.close();
                 }
-                delete require.cache[require.resolve('../../db')];
             } catch (e) {
                 // Игнорируем
             }
@@ -519,7 +501,7 @@ export class BackupManagerV2 {
                         // Игнорируем ошибки обновления времени
                     }
 
-                    console.log('[Backup] Файл БД заблокирован, используем временный путь для восстановления');
+                    console.log('[Backup] DB file is locked, using temporary path for restoration');
                 }
             } else {
                 // Для больших файлов используем VACUUM INTO (он оптимален для больших файлов)
@@ -533,7 +515,7 @@ export class BackupManagerV2 {
                     }
                 } catch (e) {
                     useTempPath = true;
-                    console.log('[Backup] Файл БД заблокирован, используем временный путь для восстановления');
+                    console.log('[Backup] DB file is locked, using temporary path for restoration');
                 }
 
                 const backupDb = new Database(backupPath, { readonly: true });
@@ -565,7 +547,7 @@ export class BackupManagerV2 {
                         // Игнорируем ошибки обновления времени
                     }
 
-                    console.log('[Backup] Восстановленный файл скопирован в нужное место');
+                    console.log('[Backup] Restored file copied to target location');
                 } else {
                     // Обновляем время модификации файла для триггера обновления соединения
                     const now = Date.now();
@@ -594,47 +576,21 @@ export class BackupManagerV2 {
             quickValidateFile(currentDbPath);
 
             // Шаг 8: Оптимизированная очистка кеша и переоткрытие соединений
-            // Очищаем только критичные модули БД, не все сервисы
-            const dbModulePath = require.resolve('../../db');
-            const databaseModulePath = require.resolve('../../database');
-
+            // Используем централизованную утилиту для очистки кеша
             try {
-                delete require.cache[dbModulePath];
-                delete require.cache[databaseModulePath];
-
-                // Очищаем только модули, напрямую связанные с БД
-                Object.keys(require.cache).forEach(key => {
-                    if ((key.includes('/db/') || key.includes('\\db\\')) &&
-                        (key.includes('/index') || key.includes('/schema'))) {
-                        try {
-                            delete require.cache[key];
-                        } catch (e) {
-                            // Игнорируем
-                        }
-                    }
-                });
+                const { clearDatabaseModuleCache } = await import('@services/utils/moduleCache');
+                clearDatabaseModuleCache(false); // Очищаем только критичные модули БД
             } catch (e) {
-                // Игнорируем
+                // Игнорируем ошибки импорта утилиты
             }
 
             // Переоткрываем соединения с новым файлом БД (быстро)
             this.connectionManager.reopenConnection();
 
-            try {
-                const dbModule = require('../../db');
-                // Устанавливаем флаг принудительного переподключения
-                // Это заставит getDbConnection() создать новое соединение при следующем обращении
-                // Не вызываем reconnectDatabase() - это переинициализирует таблицы и медленно
-                if (dbModule.setForceReconnect) {
-                    dbModule.setForceReconnect();
-                }
-                // Обновляем время модификации для синхронизации (критично для обнаружения изменений)
-                if (dbModule.updateLastDbModTime) {
-                    dbModule.updateLastDbModTime();
-                }
-            } catch (e) {
-                // Игнорируем
-            }
+            // Устанавливаем флаг принудительного переподключения
+            // Это заставит getDbConnection() создать новое соединение при следующем обращении
+            // Не вызываем reconnectDatabase() - это переинициализирует таблицы и медленно
+            setForceReconnect();
 
             return { success: true };
         } catch (error) {

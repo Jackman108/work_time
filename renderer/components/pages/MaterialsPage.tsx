@@ -2,14 +2,13 @@
  * Страница управления материалами
  */
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { usePageData, PageLoadingSpinner } from '../../hooks';
-import { useNotifications } from '../common';
-import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../../api';
-import { formatCurrency } from '../../utils/formatters';
-import FormErrors, { FieldError, getFieldClasses } from '../FormErrors';
-import FormValidator from '../../utils/formValidator';
-import type { Material, MaterialFormData } from '../../types';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { usePageData, PageLoadingSpinner } from '@renderer/hooks';
+import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '@renderer/api';
+import { formatCurrency } from '@renderer/utils/formatters';
+import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+import FormValidator from '@renderer/utils/formValidator';
+import type { Material, MaterialFormData } from '@renderer/types';
 
 const initialFormData: MaterialFormData = {
   name: '',
@@ -18,8 +17,6 @@ const initialFormData: MaterialFormData = {
 };
 
 export default function MaterialsPage() {
-  const { showSuccess, showError } = useNotifications();
-  
   const [formData, setFormData] = useState<MaterialFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);

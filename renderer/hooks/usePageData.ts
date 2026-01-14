@@ -3,9 +3,9 @@
  */
 
 import React, { useState, useEffect, useCallback, ReactElement } from 'react';
-import { useNotifications, useConfirmDialog, LoadingSpinner } from '../components/common';
+import { useNotifications, useConfirmDialog, LoadingSpinner } from '@renderer/components/common';
 import { useAsyncOperation } from './useAsyncOperation';
-import type { UsePageDataConfig, UsePageDataResult } from '../types';
+import type { UsePageDataConfig, UsePageDataResult } from '@renderer/types';
 
 export function usePageData<T extends { id: number }>(config: UsePageDataConfig<T>): UsePageDataResult<T> {
     const {

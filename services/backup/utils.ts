@@ -4,9 +4,8 @@
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
 import * as crypto from 'crypto';
-import { isPortable, getProjectRoot, getDatabaseDirectory } from '../utils/pathUtils';
+import { isPortable, getProjectRoot, getDatabaseDirectory } from '@services/utils/pathUtils';
 
 // Реэкспорт общих функций для удобства
 export { isPortable, getProjectRoot, getDatabaseDirectory };

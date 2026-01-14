@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import type { OverallStats } from '../../types';
+import type { OverallStats } from '@renderer/types';
 
 interface OverallStatsChartProps {
   overallStats: OverallStats;

@@ -5,8 +5,8 @@
  * Внутренняя реализация использует Repository Pattern через ProjectService.
  * 
  * Для нового кода рекомендуется использовать:
- * - import { projectService } from './domain/ProjectService';
- * - import { projectRepository } from './repositories/ProjectRepository';
+ * - import { projectService } from '@services/domain/ProjectService';
+ * - import { projectRepository } from '@services/repositories/ProjectRepository';
  * 
  * @module services/projects
  */

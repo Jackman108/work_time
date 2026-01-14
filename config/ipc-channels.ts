@@ -1,17 +1,18 @@
 /**
- * Константы IPC каналов
- * Централизованное управление всеми каналами IPC для предотвращения ошибок
- * Следует принципу Single Source of Truth
+ * Общие константы IPC каналов
+ * Единый источник истины для всех IPC каналов
+ * Используется в main process и может быть импортирован в renderer через типы
+ * 
+ * РЕОРГАНИЗАЦИЯ: Файл перемещён из shared/ipc-channels.ts в config/ipc-channels.ts
+ * для лучшей организации структуры проекта.
  * 
  * @module config/ipc-channels
  */
 
-import type { IpcChannels } from '../types/ipc-channels';
-
 /**
  * IPC каналы для проектов
  */
-const PROJECTS = {
+export const PROJECTS_CHANNELS = {
   GET_ALL: 'projects:getAll',
   GET_BY_ID: 'projects:getById',
   CREATE: 'projects:create',
@@ -23,7 +24,7 @@ const PROJECTS = {
 /**
  * IPC каналы для сотрудников
  */
-const EMPLOYEES = {
+export const EMPLOYEES_CHANNELS = {
   GET_ALL: 'employees:getAll',
   GET_BY_ID: 'employees:getById',
   CREATE: 'employees:create',
@@ -35,7 +36,7 @@ const EMPLOYEES = {
 /**
  * IPC каналы для материалов
  */
-const MATERIALS = {
+export const MATERIALS_CHANNELS = {
   GET_ALL: 'materials:getAll',
   GET_BY_ID: 'materials:getById',
   CREATE: 'materials:create',
@@ -47,7 +48,7 @@ const MATERIALS = {
 /**
  * IPC каналы для учёта рабочего времени
  */
-const WORK_LOG = {
+export const WORK_LOG_CHANNELS = {
   GET_ALL: 'workLog:getAll',
   CREATE: 'workLog:create',
   UPDATE: 'workLog:update',
@@ -57,7 +58,7 @@ const WORK_LOG = {
 /**
  * IPC каналы для учёта списания материалов
  */
-const MATERIAL_LOG = {
+export const MATERIAL_LOG_CHANNELS = {
   GET_ALL: 'materialLog:getAll',
   CREATE: 'materialLog:create',
   UPDATE: 'materialLog:update',
@@ -67,7 +68,7 @@ const MATERIAL_LOG = {
 /**
  * IPC каналы для поступлений денег на проекты
  */
-const PROJECT_PAYMENTS = {
+export const PROJECT_PAYMENTS_CHANNELS = {
   GET_ALL: 'projectPayments:getAll',
   CREATE: 'projectPayments:create',
   UPDATE: 'projectPayments:update',
@@ -78,7 +79,7 @@ const PROJECT_PAYMENTS = {
 /**
  * IPC каналы для отчётов
  */
-const REPORTS = {
+export const REPORTS_CHANNELS = {
   GET_ALL_PROJECTS: 'reports:getAllProjects',
   GET_ALL_EMPLOYEES: 'reports:getAllEmployees',
   GET_ALL_MATERIALS: 'reports:getAllMaterials',
@@ -88,7 +89,7 @@ const REPORTS = {
 /**
  * IPC каналы для резервного копирования и восстановления БД
  */
-const BACKUP = {
+export const BACKUP_CHANNELS = {
   EXPORT_TO_FILE: 'backup:exportToFile',
   IMPORT_FROM_FILE: 'backup:importFromFile',
   GET_BACKUP_LIST: 'backup:getBackupList',
@@ -100,37 +101,28 @@ const BACKUP = {
 /**
  * IPC каналы для диалогов выбора файлов
  */
-const DIALOG = {
+export const DIALOG_CHANNELS = {
   SHOW_OPEN_DIALOG: 'dialog:showOpenDialog',
   SHOW_SAVE_DIALOG: 'dialog:showSaveDialog'
 } as const;
 
 /**
- * Все IPC каналы в одном объекте для удобства
+ * Все IPC каналы в одном объекте
+ * Соответствует структуре из config/ipc-channels.ts для обратной совместимости
  */
-const IPC_CHANNELS: IpcChannels = {
-  PROJECTS,
-  EMPLOYEES,
-  MATERIALS,
-  WORK_LOG,
-  MATERIAL_LOG,
-  PROJECT_PAYMENTS,
-  REPORTS,
-  BACKUP,
-  DIALOG
-};
+export const IPC_CHANNELS = {
+  PROJECTS: PROJECTS_CHANNELS,
+  EMPLOYEES: EMPLOYEES_CHANNELS,
+  MATERIALS: MATERIALS_CHANNELS,
+  WORK_LOG: WORK_LOG_CHANNELS,
+  MATERIAL_LOG: MATERIAL_LOG_CHANNELS,
+  PROJECT_PAYMENTS: PROJECT_PAYMENTS_CHANNELS,
+  REPORTS: REPORTS_CHANNELS,
+  BACKUP: BACKUP_CHANNELS,
+  DIALOG: DIALOG_CHANNELS
+} as const;
 
-export {
-  IPC_CHANNELS,
-  PROJECTS,
-  EMPLOYEES,
-  MATERIALS,
-  WORK_LOG,
-  MATERIAL_LOG,
-  PROJECT_PAYMENTS,
-  REPORTS,
-  BACKUP,
-  DIALOG
-};
-
-
+/**
+ * Типы для IPC каналов (для использования в TypeScript)
+ */
+export type IpcChannels = typeof IPC_CHANNELS;

@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import type { MaterialReport } from '../../types';
+import type { MaterialReport } from '@renderer/types';
 
 interface MaterialsPieChartProps {
   data: MaterialReport[];

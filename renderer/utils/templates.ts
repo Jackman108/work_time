@@ -143,6 +143,7 @@ export function checkDuplicateByCombination(
     return { hasDuplicate: false };
   }
 
+  // Проверяем, что все поля заполнены
   for (const field of fieldsToCheck) {
     if (!data[field]) {
       return { hasDuplicate: false };

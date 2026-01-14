@@ -3,16 +3,16 @@
  */
 
 import React from 'react';
-import ProjectsPage from '../components/pages/ProjectsPage';
-import EmployeesPage from '../components/pages/EmployeesPage';
-import MaterialsPage from '../components/pages/MaterialsPage';
-import WorkLogPage from '../components/pages/WorkLogPage';
-import MaterialLogPage from '../components/pages/MaterialLogPage';
-import PayrollPage from '../components/pages/PayrollPage';
-import ReportsPage from '../components/pages/ReportsPage';
-import SettingsPage from '../components/pages/SettingsPage';
-import { ROUTES } from '../constants';
-import type { RouteConfig } from '../types';
+import ProjectsPage from '@renderer/components/pages/ProjectsPage';
+import EmployeesPage from '@renderer/components/pages/EmployeesPage';
+import MaterialsPage from '@renderer/components/pages/MaterialsPage';
+import WorkLogPage from '@renderer/components/pages/WorkLogPage';
+import MaterialLogPage from '@renderer/components/pages/MaterialLogPage';
+import PayrollPage from '@renderer/components/pages/PayrollPage';
+import ReportsPage from '@renderer/components/pages/ReportsPage';
+import SettingsPage from '@renderer/components/pages/SettingsPage';
+import { ROUTES } from '@renderer/constants';
+import type { RouteConfig } from '@renderer/types';
 
 type RoutesMap = {
   [key: string]: RouteConfig;

@@ -11,7 +11,10 @@ import { app } from 'electron';
 import { BackupManagerV2 } from './BackupManagerV2';
 import { DatabaseConnectionManager } from './DatabaseConnectionManager';
 import { quickValidateFile } from './utils';
-import { getDatabaseDirectory, isPortable, getProjectRoot } from '../utils/pathUtils';
+import { getDatabaseDirectory, isPortable, getProjectRoot } from '@services/utils/pathUtils';
+import { executeBackupOperation, executeRestoreOperation } from '@services/utils/databaseLock';
+import { validateFilePathForRead, validateDirPathForWrite, getSafeFileName } from '@services/utils/pathSecurity';
+import { resetForceReconnect } from 'db';
 import type { Types } from 'types';
 
 // Получаем путь к текущей БД
@@ -27,161 +30,127 @@ const backupManager = new BackupManagerV2(connectionManager);
 // Отслеживаем последний загруженный бэкап
 let lastLoadedBackupPath: string | null = null;
 
-/**
- * Очистить кеш всех модулей, связанных с БД
- */
-function clearAllDatabaseModuleCache(): void {
-    const modulesToClear = [
-        '../../database',
-        '../../db',
-        '../../db/index',
-        '../../db/schema',
-        '../projects',
-        '../employees',
-        '../materials',
-        '../workLog',
-        '../materialLog',
-        '../projectPayments',
-        '../reports',
-        '../backup',
-        '../base/BaseService',
-        '../base/ErrorHandler',
-        '../utils/fieldMapper',
-        '../utils/queryBuilder',
-    ];
-
-    modulesToClear.forEach(modulePath => {
-        try {
-            const resolvedPath = require.resolve(modulePath);
-            if (require.cache[resolvedPath]) {
-                delete require.cache[resolvedPath];
-            }
-        } catch (e) {
-            // Игнорируем ошибки разрешения путей
-        }
-    });
-
-    // Очищаем кеш для всех модулей, содержащих 'db', 'database' или 'services'
-    Object.keys(require.cache).forEach(key => {
-        if (key.includes('db') || key.includes('database') || key.includes('services')) {
-            delete require.cache[key];
-        }
-    });
-}
-
-/**
- * Перезагрузить все сервисы
- */
-function reloadAllServices(): void {
-    clearAllDatabaseModuleCache();
-
-    // Вызываем глобальную функцию reloadServices, если она доступна
-    if ((global as any).reloadServices && typeof (global as any).reloadServices === 'function') {
-        try {
-            (global as any).reloadServices();
-        } catch (e) {
-            // Игнорируем ошибки
-        }
-    }
-}
+// Функция reloadAllServices удалена - теперь используется глобальная reloadServices из main.ts
+// Это устраняет дублирование и улучшает архитектуру
 
 /**
  * Экспортировать базу данных в выбранное место
+ * Защищено от race conditions через систему блокировок
  */
 export async function exportDatabaseToFile(savePath: string): Promise<Types.BackupExportResult> {
     if (!savePath) {
         throw new Error('Путь для сохранения не указан');
     }
 
-    try {
-        // Создаем директорию, если её нет
-        const saveDir = path.dirname(savePath);
-        if (!fs.existsSync(saveDir)) {
-            fs.mkdirSync(saveDir, { recursive: true });
+    // УЛУЧШЕНИЕ: Валидация пути для защиты от path traversal атак
+    // Определяем базовую директорию для бэкапов
+    const backupBaseDir = path.join(getDatabaseDirectory(), 'backups');
+
+    // Валидируем директорию для записи
+    const saveDir = path.dirname(savePath);
+    const validatedSaveDir = validateDirPathForWrite(saveDir, backupBaseDir);
+
+    // Получаем безопасное имя файла
+    const safeFileName = getSafeFileName(savePath);
+    const validatedSavePath = path.join(validatedSaveDir, safeFileName);
+
+    // Выполняем операцию бэкапа с блокировкой
+    return executeBackupOperation(async () => {
+        try {
+            // Создаем бэкап с указанным именем
+            const result = await backupManager.createBackup(safeFileName);
+
+            if (!result.success) {
+                throw new Error(result.error || 'Ошибка создания бэкапа');
+            }
+
+            // Если путь отличается от пути бэкапа, копируем файл
+            const normalizedBackupPath = path.resolve(result.backupPath);
+            const normalizedSavePath = path.resolve(validatedSavePath);
+
+            if (normalizedBackupPath !== normalizedSavePath) {
+                fs.copyFileSync(result.backupPath, validatedSavePath);
+            }
+
+            return {
+                success: true,
+                message: 'База данных успешно экспортирована',
+                path: validatedSavePath
+            };
+        } catch (error) {
+            throw new Error(`Ошибка экспорта базы данных: ${(error as Error).message}`);
         }
-
-        // Создаем бэкап с указанным именем
-        const fileName = path.basename(savePath);
-        const result = await backupManager.createBackup(fileName);
-
-        if (!result.success) {
-            throw new Error(result.error || 'Ошибка создания бэкапа');
-        }
-
-        // Если путь отличается от пути бэкапа, копируем файл
-        const normalizedBackupPath = path.resolve(result.backupPath);
-        const normalizedSavePath = path.resolve(savePath);
-
-        if (normalizedBackupPath !== normalizedSavePath) {
-            fs.copyFileSync(result.backupPath, savePath);
-        }
-
-        return {
-            success: true,
-            message: 'База данных успешно экспортирована',
-            path: savePath
-        };
-    } catch (error) {
-        throw new Error(`Ошибка экспорта базы данных: ${(error as Error).message}`);
-    }
+    });
 }
 
 /**
  * Импортировать базу данных из файла
+ * Защищено от race conditions через систему блокировок
  */
 export async function importDatabaseFromFile(filePath: string): Promise<Types.BackupImportResult> {
     if (!filePath) {
         throw new Error('Путь к файлу не указан');
     }
 
-    const normalizedPath = path.resolve(filePath);
-
-    if (!fs.existsSync(normalizedPath)) {
-        throw new Error(`Файл не найден: ${normalizedPath}`);
-    }
+    // УЛУЧШЕНИЕ: Валидация пути для защиты от path traversal атак
+    // Для импорта разрешаем файлы из директории бэкапов или из пользовательской директории
+    // (пользователь выбирает файл через диалог, поэтому путь уже проверен Electron)
+    // Но всё равно валидируем для дополнительной безопасности
+    const backupBaseDir = path.join(getDatabaseDirectory(), 'backups');
+    let validatedPath: string;
 
     try {
-        // Быстрая валидация файла (только проверка существования и размера)
-        quickValidateFile(normalizedPath);
+        // Пробуем валидировать относительно директории бэкапов
+        validatedPath = validateFilePathForRead(filePath, backupBaseDir);
+    } catch {
+        // Если файл не в директории бэкапов, проверяем, что это абсолютный путь
+        // (пользователь выбрал через диалог - Electron уже проверил безопасность)
+        validatedPath = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(backupBaseDir, filePath);
 
-        console.log(`[Backup] Начало импорта бэкапа: ${path.basename(normalizedPath)}`);
-
-        // Восстанавливаем из бэкапа
-        // restoreFromBackup уже переоткрывает соединения внутри себя
-        const result = await backupManager.restoreFromBackup(normalizedPath);
-
-        if (!result.success) {
-            console.error(`[Backup] Ошибка импорта бэкапа: ${result.error}`);
-            throw new Error(result.error || 'Ошибка восстановления базы данных');
+        // Дополнительная проверка существования
+        if (!fs.existsSync(validatedPath)) {
+            throw new Error(`Файл не найден: ${validatedPath}`);
         }
-
-        // Сохраняем путь к загруженному бэкапу
-        lastLoadedBackupPath = normalizedPath;
-
-        // Оптимизация: restoreFromBackup уже переоткрыл соединения и очистил кеш
-        // Не перезагружаем все сервисы заново - это замедляет процесс
-        // Вместо этого просто сбрасываем флаг принудительного переподключения
-        try {
-            const dbModule = require('../../db');
-            if (dbModule.resetForceReconnect) {
-                dbModule.resetForceReconnect();
-            }
-        } catch (e) {
-            // Игнорируем
-        }
-
-        console.log(`[Backup] Бэкап успешно импортирован: ${path.basename(normalizedPath)}`);
-
-        // Не создаем бэкап из импортированного файла - это замедляет процесс
-        // Пользователь может создать бэкап вручную, если нужно
-
-        return {
-            success: true,
-            message: 'База данных успешно импортирована'
-        };
-    } catch (error) {
-        throw new Error(`Ошибка импорта базы данных: ${(error as Error).message}`);
     }
+
+    // Выполняем операцию восстановления с блокировкой
+    return executeRestoreOperation(async () => {
+        try {
+            // Быстрая валидация файла (только проверка существования и размера)
+            quickValidateFile(validatedPath);
+
+            console.log(`[Backup] Starting backup import: ${path.basename(validatedPath)}`);
+
+            // Восстанавливаем из бэкапа
+            // restoreFromBackup уже переоткрывает соединения внутри себя
+            const result = await backupManager.restoreFromBackup(validatedPath);
+
+            if (!result.success) {
+                console.error(`[Backup] Backup import error: ${result.error}`);
+                throw new Error(result.error || 'Ошибка восстановления базы данных');
+            }
+
+            // Сохраняем путь к загруженному бэкапу
+            lastLoadedBackupPath = validatedPath;
+
+            // Оптимизация: restoreFromBackup уже переоткрыл соединения и очистил кеш
+            // Не перезагружаем все сервисы заново - это замедляет процесс
+            // Вместо этого просто сбрасываем флаг принудительного переподключения
+            resetForceReconnect();
+
+            console.log(`[Backup] Backup successfully imported: ${path.basename(validatedPath)}`);
+
+            // Не создаем бэкап из импортированного файла - это замедляет процесс
+            // Пользователь может создать бэкап вручную, если нужно
+
+            return {
+                success: true,
+                message: 'База данных успешно импортирована'
+            };
+        } catch (error) {
+            throw new Error(`Ошибка импорта базы данных: ${(error as Error).message}`);
+        }
+    });
 }
 
 
@@ -192,14 +161,11 @@ export async function getBackupList(): Promise<Types.BackupListResult> {
     try {
         const backups = backupManager.getBackupList();
 
-        const result = backups.map(backup => {
-            const stats = fs.existsSync(backup.path) ? fs.statSync(backup.path) : null;
-            return {
-                path: backup.path,
-                createdAt: backup.createdAt,
-                hash: backup.hash
-            };
-        });
+        const result = backups.map(backup => ({
+            path: backup.path,
+            createdAt: backup.createdAt,
+            hash: backup.hash
+        }));
 
         return {
             success: true,

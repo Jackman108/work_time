@@ -2,11 +2,11 @@
  * Централизованный экспорт common компонентов
  */
 
-export { default as LoadingSpinner } from '../LoadingSpinner';
-export { default as FormErrors, FieldError, getFieldClasses } from '../FormErrors';
-export { default as ConfirmDialog, useConfirmDialog } from '../ConfirmDialog';
-export { default as Navigation } from '../Navigation';
-export { useNotifications, NotificationProvider, NotificationType } from '../NotificationSystem';
+export { default as LoadingSpinner } from '@renderer/components/LoadingSpinner';
+export { default as FormErrors, FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+export { default as ConfirmDialog, useConfirmDialog } from '@renderer/components/ConfirmDialog';
+export { default as Navigation } from '@renderer/components/Navigation';
+export { useNotifications, NotificationProvider, NotificationType } from '@renderer/components/NotificationSystem';
 
 // Chart components (tsx)
 export { default as ProjectsBarChart } from './ProjectsBarChart';

@@ -4,23 +4,13 @@
   "description": "Система управления строительными проектами на Electron + SQLite",
   "main": "dist-main/main.js",
   "scripts": {
-    "start": "npx electron .",
     "dev": "node dev-start.js",
-    "dev:vite": "cd renderer && vite",
-    "dev:electron": "npx electron .",
-    "vite": "cd renderer && vite",
-    "build": "cd renderer && vite build",
+    "start": "npx electron .",
+    "build": "yarn build:ts && yarn build:prod",
+    "build:ts": "tsc -p tsconfig.main.json && tsc-alias -p tsconfig.main.json",
     "build:prod": "cd renderer && vite build --mode production",
-    "build:ts": "tsc -p tsconfig.main.json",
-    "build:ts:watch": "tsc -p tsconfig.main.json --watch",
-    "prebuild:dist": "npm run build:ts",
-    "postinstall": "electron-rebuild",
-    "rebuild": "electron-rebuild",
-    "pack": "yarn build:ts && yarn build:prod && electron-builder --dir",
-    "dist": "yarn build:ts && yarn build:prod && electron-builder",
-    "dist:portable": "yarn build:ts && yarn build:prod && electron-builder --win portable",
-    "prod": "cd renderer && yarn vite build && cd .. && yarn start",
-    "type-check": "tsc --noEmit"
+    "dist:portable": "yarn build && electron-builder --win portable",
+    "postinstall": "electron-rebuild"
   },
   "keywords": [
     "electron",
@@ -28,7 +18,7 @@
     "строительство"
   ],
   "author": "AI архитектор",
-  "license": "MIT",
+  "license": "PROPRIETARY",
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "bootstrap": "^5.0.0",
@@ -53,6 +43,7 @@
     "electron-rebuild": "^3.2.9",
     "terser": "^5.26.0",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.0.0",
     "vite": "^7.0.0"
   },

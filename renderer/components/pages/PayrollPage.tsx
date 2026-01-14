@@ -2,13 +2,13 @@
  * Страница учёта поступлений денег на проекты
  */
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { usePageData, PageLoadingSpinner } from '../../hooks';
-import { getProjectPayments, createProjectPayment, updateProjectPayment, deleteProjectPayment, getProjects } from '../../api';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import FormErrors, { FieldError, getFieldClasses } from '../FormErrors';
-import FormValidator from '../../utils/formValidator';
-import type { ProjectPayment, PaymentFormData, Project } from '../../types';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { usePageData, PageLoadingSpinner } from '@renderer/hooks';
+import { getProjectPayments, createProjectPayment, updateProjectPayment, deleteProjectPayment, getProjects } from '@renderer/api';
+import { formatCurrency, formatDate } from '@renderer/utils/formatters';
+import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+import FormValidator from '@renderer/utils/formValidator';
+import type { ProjectPayment, PaymentFormData, Project } from '@renderer/types';
 
 const initialFormData: PaymentFormData = {
   project_id: '',

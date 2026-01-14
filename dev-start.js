@@ -1,6 +1,5 @@
 // Простой скрипт для запуска dev-режима без дополнительных зависимостей
 const { spawn, exec } = require('child_process');
-const path = require('path');
 const os = require('os');
 
 // Устанавливаем UTF-8 кодировку для Windows консоли
@@ -19,7 +18,7 @@ if (os.platform() === 'win32') {
  */
 function killPort(port) {
   return new Promise((resolve) => {
-    exec(`netstat -ano | findstr :${port}`, (error, stdout) => {
+    exec(`netstat -ano | findstr :${port}`, (_error, stdout) => {
       if (stdout) {
         const lines = stdout.trim().split('\n');
         const pids = new Set();
@@ -66,12 +65,28 @@ tsc.on('close', (code) => {
   
   console.log('✅ TypeScript скомпилирован\n');
   
-  // Освобождаем порт перед запуском
-  killPort(5173).then(() => {
+  // Преобразуем алиасы путей в относительные пути
+  console.log('🔄 Преобразование алиасов путей...\n');
+  const tscAlias = spawn('npx', ['tsc-alias', '-p', 'tsconfig.main.json'], {
+    cwd: __dirname,
+    shell: true,
+    stdio: 'inherit'
+  });
+  
+  tscAlias.on('close', (aliasCode) => {
+    if (aliasCode !== 0) {
+      console.error('❌ Ошибка преобразования алиасов');
+      process.exit(1);
+    }
+    
+    console.log('✅ Алиасы преобразованы\n');
+    
+    // Освобождаем порт перед запуском
+    killPort(5173).then(() => {
 
     // Запускаем Vite dev server
-    const vite = spawn('npm', ['run', 'dev:vite'], {
-      cwd: __dirname,
+    const vite = spawn('npx', ['vite'], {
+      cwd: require('path').join(__dirname, 'renderer'),
       shell: true,
       stdio: 'inherit'
     });
@@ -79,7 +94,7 @@ tsc.on('close', (code) => {
     // Ждем 3 секунды и запускаем Electron
     setTimeout(() => {
       console.log('⚡ Запуск Electron...\n');
-      const electron = spawn('npm', ['run', 'dev:electron'], {
+      const electron = spawn('npx', ['electron', '.'], {
         cwd: __dirname,
         shell: true,
         stdio: 'inherit',
@@ -98,6 +113,7 @@ tsc.on('close', (code) => {
       process.exit(0);
     });
 
+    });
   });
 });
 

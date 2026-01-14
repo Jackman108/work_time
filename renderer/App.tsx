@@ -4,9 +4,9 @@
 
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { NotificationProvider, Navigation } from './components/common';
-import { getRouteComponent, routeExists } from './router';
-import { ROUTES } from './constants';
+import { NotificationProvider, Navigation } from '@renderer/components/common';
+import { getRouteComponent, routeExists } from '@renderer/router';
+import { ROUTES } from '@renderer/constants';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>(ROUTES.PROJECTS);

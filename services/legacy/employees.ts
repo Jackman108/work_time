@@ -4,10 +4,10 @@
  * @module services/employees
  */
 
-import { eq, sql, sum, count, desc, SQL, and } from 'drizzle-orm';
-import { db, employees, workLog } from '../db';
+import { eq, sum, count, desc, SQL } from 'drizzle-orm';
+import { db, employees, workLog, updateLastDbModTime } from 'db';
 import type { Types } from 'types';
-import { addDateFilters, buildWhereClause } from './utils/queryBuilder';
+import { addDateFilters, buildWhereClause } from '@services/utils/queryBuilder';
 
 /**
  * Получить всех сотрудников
@@ -39,19 +39,17 @@ export function createEmployee(data: Types.EmployeeCreateData): Types.Employee {
     phone: data.phone || null,
     role: data.position || null,
     wage_per_hour: data.salary_per_day || 0,
+    hire_date: data.hire_date || null,
   }).returning().get();
 
   if (!result) {
     throw new Error('Failed to create employee');
   }
 
-  console.log(`[DB] Создан сотрудник: ID=${result.id}, имя="${data.name}"`);
+  console.log(`[DB] Employee created: ID=${result.id}, name="${data.name}"`);
   
   // Обновляем время модификации БД для обновления соединения
-  const dbModule = require('../db');
-  if (dbModule.updateLastDbModTime) {
-    dbModule.updateLastDbModTime();
-  }
+  updateLastDbModTime();
   
   return mapToApiFormat(result);
 }
@@ -71,6 +69,7 @@ export function updateEmployee(id: number, data: Types.EmployeeUpdateData): Type
   if (data.phone !== undefined) updateData.phone = data.phone || null;
   if (data.position !== undefined) updateData.role = data.position || null;
   if (data.salary_per_day !== undefined) updateData.wage_per_hour = data.salary_per_day || 0;
+  if (data.hire_date !== undefined) updateData.hire_date = data.hire_date || null;
 
   const result = db.update(employees)
     .set(updateData)
@@ -82,7 +81,7 @@ export function updateEmployee(id: number, data: Types.EmployeeUpdateData): Type
     throw new Error('Employee not found');
   }
 
-  console.log(`[DB] Обновлен сотрудник: ID=${id}, имя="${result.name}"`);
+  console.log(`[DB] Employee updated: ID=${id}, name="${result.name}"`);
   return mapToApiFormat(result);
 }
 
@@ -97,7 +96,7 @@ export function deleteEmployee(id: number): boolean {
   const deleted = !!result;
   
   if (deleted && employee) {
-    console.log(`[DB] Удален сотрудник: ID=${id}, имя="${employee.name}"`);
+    console.log(`[DB] Employee deleted: ID=${id}, name="${employee.name}"`);
   }
   
   return deleted;
@@ -150,7 +149,7 @@ function mapToApiFormat(employee: typeof employees.$inferSelect): Types.Employee
     name: employee.name,
     phone: employee.phone,
     position: employee.role,
-    hire_date: null, // Поле отсутствует в БД, оставляем null
+    hire_date: employee.hire_date || null,
     salary_per_day: employee.wage_per_hour,
     created_at: employee.created_at,
     updated_at: employee.updated_at,

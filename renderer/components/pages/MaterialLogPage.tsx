@@ -2,13 +2,13 @@
  * Страница учёта списания материалов
  */
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { usePageData, PageLoadingSpinner } from '../../hooks';
-import { getMaterialLogs, createMaterialLog, updateMaterialLog, deleteMaterialLog, getProjects, getMaterials } from '../../api';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import FormErrors, { FieldError, getFieldClasses } from '../FormErrors';
-import FormValidator from '../../utils/formValidator';
-import type { MaterialLog, MaterialLogFormData, Project, Material } from '../../types';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { usePageData, PageLoadingSpinner } from '@renderer/hooks';
+import { getMaterialLogs, createMaterialLog, updateMaterialLog, deleteMaterialLog, getProjects, getMaterials } from '@renderer/api';
+import { formatCurrency, formatDate } from '@renderer/utils/formatters';
+import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+import FormValidator from '@renderer/utils/formValidator';
+import type { MaterialLog, MaterialLogFormData, Project, Material } from '@renderer/types';
 
 const initialFormData: MaterialLogFormData = {
   project_id: '',
@@ -138,11 +138,6 @@ export default function MaterialLogPage() {
     } catch (error) {
       console.error('Ошибка сохранения записи:', error);
     }
-  };
-
-  const getMaterialUnit = (materialId: number): string => {
-    const material = materials.find(m => m.id === materialId);
-    return material?.unit || '';
   };
 
   return (

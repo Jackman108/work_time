@@ -11,9 +11,8 @@
 
 import Database from 'better-sqlite3';
 import * as fs from 'fs';
-import * as path from 'path';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as schema from '../../db/schema';
+import * as schema from '@db/schema';
 
 /**
  * Интерфейс для управления соединением

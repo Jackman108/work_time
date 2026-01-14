@@ -5,9 +5,9 @@
  */
 
 import { eq, sql, sum, count, SQL, desc } from 'drizzle-orm';
-import { db, projects, employees, materials, workLog, materialLog, projectPayments } from '../db';
+import { db, projects, employees, materials, workLog, materialLog, projectPayments } from 'db';
 import type { Types } from 'types';
-import { buildWhereClause, addDateFilters } from './utils/queryBuilder';
+import { buildWhereClause, addDateFilters } from '@services/utils/queryBuilder';
 
 /**
  * Получить отчёт по всем проектам

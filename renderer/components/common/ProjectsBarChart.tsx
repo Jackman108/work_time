@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { ProjectReport } from '../../types';
+import type { ProjectReport } from '@renderer/types';
 
 interface ProjectsBarChartProps {
   data: ProjectReport[];

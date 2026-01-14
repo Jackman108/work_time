@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { calculateFileHash } from './utils';
-import { getProjectRoot } from '../utils/pathUtils';
+import { getProjectRoot } from '@services/utils/pathUtils';
 
 /**
  * Найти дубликаты файлов в директории

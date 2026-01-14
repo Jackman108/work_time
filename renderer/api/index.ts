@@ -1,12 +1,21 @@
 /**
  * Централизованный API для общения с main process через IPC
+ * Использует единый источник истины для IPC каналов из shared/ipc-channels.ts
  */
 
 import type {
   Project, Employee, Material, WorkLog, MaterialLog, ProjectPayment,
   ProjectReport, EmployeeReport, MaterialReport, OverallStats, BackupResult
-} from '../types';
+} from '@renderer/types';
 
+// Импортируем IPC каналы из единого источника
+// ПРИМЕЧАНИЕ: В renderer процессе мы не можем напрямую импортировать Node.js модули из shared/,
+// поэтому используем константы. Значения должны быть синхронизированы с shared/ipc-channels.ts
+// 
+// ВАЖНО: При изменении каналов в shared/ipc-channels.ts необходимо обновить и здесь!
+// В будущем можно использовать build-time генерацию или синхронизацию через общий файл типов.
+
+// Используем значения из shared/ipc-channels.ts (синхронизировано вручную)
 const IPC_CHANNELS = {
   PROJECTS: {
     GET_ALL: 'projects:getAll',

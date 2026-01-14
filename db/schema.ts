@@ -29,6 +29,7 @@ export const employees = sqliteTable('employees', {
     role: text('role'), // Должность/роль
     wage_per_hour: real('wage_per_hour').default(0).notNull(),
     phone: text('phone'),
+    hire_date: text('hire_date'), // Дата найма
     created_at: text('created_at').default('CURRENT_TIMESTAMP').notNull(),
     updated_at: text('updated_at').default('CURRENT_TIMESTAMP').notNull(),
 }, (table) => ({

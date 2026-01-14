@@ -3,8 +3,8 @@
  */
 
 import React, { ReactElement } from 'react';
-import { getAllRoutes, getRouteConfig } from '../router';
-import { ROUTES } from '../constants';
+import { getAllRoutes, getRouteConfig } from '@renderer/router';
+import { ROUTES } from '@renderer/constants';
 
 interface Tab {
   id: string;

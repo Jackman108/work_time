@@ -11,6 +11,12 @@
     "sourceMap": false,
     "strict": true,
     "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "moduleResolution": "node",
@@ -20,7 +26,11 @@
     "paths": {
       "@/*": ["./*"],
       "@types/*": ["./types/*"],
-      "types": ["./types"]
+      "@db/*": ["./db/*"],
+      "@services/*": ["./services/*"],
+      "@config/*": ["./config/*"],
+      "types": ["./types"],
+      "db": ["./db"]
     },
     "typeRoots": ["./types", "./node_modules/@types"],
     "types": ["node"]

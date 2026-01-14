@@ -103,16 +103,6 @@ function safeOn(channel: string, listener: (event: IpcRendererEvent, ...args: an
   ipcRenderer.on(channel, (event, ...args) => listener(event, ...args));
 }
 
-/**
- * Типы для API, экспортируемого в window
- */
-interface ElectronAPI {
-  invoke: (channel: string, ...args: any[]) => Promise<any>;
-  send: (channel: string, data: any) => void;
-  on: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void) => void;
-  removeListener: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void) => void;
-}
-
 // Тип electronAPI уже объявлен в types/global.d.ts
 
 // Экспортируем безопасный API в renderer process

@@ -2,7 +2,7 @@
  * Страница настроек
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   exportDatabaseToFile,
   importDatabaseFromFile, 
@@ -12,9 +12,9 @@ import {
   deleteBackup,
   showOpenDialog,
   showSaveDialog
-} from '../../api';
-import { useNotifications, ConfirmDialog } from '../common';
-import type { ConfirmDialogType } from '../../types';
+} from '@renderer/api';
+import { useNotifications, ConfirmDialog } from '@renderer/components/common';
+import type { ConfirmDialogType } from '@renderer/types';
 
 interface ConfirmDialogState {
   show: boolean;

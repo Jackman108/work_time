@@ -3,7 +3,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import type { Notification, NotificationTypeValue, NotificationContextValue } from '../types';
+import type { Notification, NotificationTypeValue, NotificationContextValue } from '@renderer/types';
 
 export const NotificationType = {
   SUCCESS: 'success' as NotificationTypeValue,

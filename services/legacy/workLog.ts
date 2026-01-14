@@ -5,9 +5,9 @@
  */
 
 import { eq, SQL, desc } from 'drizzle-orm';
-import { db, workLog, employees, projects } from '../db';
+import { db, workLog, employees, projects } from 'db';
 import type { Types } from 'types';
-import { buildWhereClause, addDateFilters, addIdFilter } from './utils/queryBuilder';
+import { buildWhereClause, addDateFilters, addIdFilter } from '@services/utils/queryBuilder';
 
 /**
  * Получить все записи рабочего времени с JOIN для имён

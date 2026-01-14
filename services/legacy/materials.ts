@@ -4,8 +4,8 @@
  * @module services/materials
  */
 
-import { eq, desc, sum, count, sql } from 'drizzle-orm';
-import { db, materials, materialLog } from '../db';
+import { eq, desc, sum, count } from 'drizzle-orm';
+import { db, materials, materialLog, updateLastDbModTime } from 'db';
 import type { Types } from 'types';
 
 /**
@@ -42,13 +42,10 @@ export function createMaterial(data: Types.MaterialCreateData): Types.Material {
     throw new Error('Failed to create material');
   }
 
-  console.log(`[DB] Создан материал: ID=${result.id}, название="${data.name}"`);
+  console.log(`[DB] Material created: ID=${result.id}, name="${data.name}"`);
 
   // Обновляем время модификации БД для обновления соединения
-  const dbModule = require('../db');
-  if (dbModule.updateLastDbModTime) {
-    dbModule.updateLastDbModTime();
-  }
+  updateLastDbModTime();
 
   return result;
 }
@@ -78,7 +75,7 @@ export function updateMaterial(id: number, data: Types.MaterialUpdateData): Type
     throw new Error('Material not found');
   }
 
-  console.log(`[DB] Обновлен материал: ID=${id}, название="${result.name}"`);
+  console.log(`[DB] Material updated: ID=${id}, name="${result.name}"`);
   return result;
 }
 
@@ -93,7 +90,7 @@ export function deleteMaterial(id: number): boolean {
   const deleted = !!result;
 
   if (deleted && material) {
-    console.log(`[DB] Удален материал: ID=${id}, название="${material.name}"`);
+    console.log(`[DB] Material deleted: ID=${id}, name="${material.name}"`);
   }
 
   return deleted;

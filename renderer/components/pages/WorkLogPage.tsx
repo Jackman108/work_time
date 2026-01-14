@@ -2,13 +2,13 @@
  * Страница учёта заработанных денег работниками
  */
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { usePageData, PageLoadingSpinner } from '../../hooks';
-import { getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog, getProjects, getEmployees } from '../../api';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import FormErrors, { FieldError, getFieldClasses } from '../FormErrors';
-import FormValidator from '../../utils/formValidator';
-import type { WorkLog, WorkLogFormData, Project, Employee } from '../../types';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { usePageData, PageLoadingSpinner } from '@renderer/hooks';
+import { getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog, getProjects, getEmployees } from '@renderer/api';
+import { formatCurrency, formatDate } from '@renderer/utils/formatters';
+import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+import FormValidator from '@renderer/utils/formValidator';
+import type { WorkLog, WorkLogFormData, Project, Employee } from '@renderer/types';
 
 const initialFormData: WorkLogFormData = {
   employee_id: '',

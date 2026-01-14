@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useCallback, ReactElement } from 'react';
-import type { ConfirmOptions, ConfirmDialogState, ConfirmDialogType } from '../types';
+import type { ConfirmOptions, ConfirmDialogState, ConfirmDialogType } from '@renderer/types';
 
 interface ConfirmDialogProps {
   show: boolean;

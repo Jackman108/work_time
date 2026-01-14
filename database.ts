@@ -8,7 +8,7 @@
 import * as path from 'path';
 import Database from 'better-sqlite3';
 import * as fs from 'fs';
-import type { ExtendedDatabase } from './services/base/BaseService';
+import type { ExtendedDatabase } from '@services/base/BaseService';
 
 // Конфигурация базы данных
 let isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR;
@@ -119,7 +119,7 @@ function isValidDatabase(filePath: string): boolean {
 
     try {
         const testDb = new Database(filePath, { readonly: true });
-        const result = testDb.prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").get();
+        testDb.prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").get();
         testDb.close();
         return true;
     } catch (error) {
@@ -245,7 +245,10 @@ function initDB(): void {
     // Инициализация таблиц происходит автоматически через db/index.ts
     // Импортируем его, чтобы триггернуть инициализацию
     try {
-        require('./db');
+        // Импортируем db модуль для инициализации
+        import('./db').catch(() => {
+            // Игнорируем ошибки импорта
+        });
     } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         console.warn('[DB] Error initializing database schema:', err.message);

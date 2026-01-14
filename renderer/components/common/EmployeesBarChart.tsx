@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { EmployeeReport } from '../../types';
+import type { EmployeeReport } from '@renderer/types';
 
 interface EmployeesBarChartProps {
   data: EmployeeReport[];

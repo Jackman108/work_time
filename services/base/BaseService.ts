@@ -13,15 +13,14 @@ export type ExtendedDatabase = Database.Database & {
     reopenDatabase?: () => ExtendedDatabase;
 };
 
+import databaseModule from '@/database';
+
 /**
  * Получить актуальное соединение с базой данных
- * Очищает кеш модуля для получения актуальной ссылки
  * @returns {ExtendedDatabase} Объект базы данных
  */
 export function getDb(): ExtendedDatabase {
-    // Очищаем кеш модуля для получения актуальной ссылки
-    delete require.cache[require.resolve('../../database')];
-    return require('../../database').default as ExtendedDatabase;
+    return databaseModule as ExtendedDatabase;
 }
 
 /**

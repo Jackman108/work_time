@@ -2,14 +2,13 @@
  * Страница управления сотрудниками
  */
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { usePageData, PageLoadingSpinner } from '../../hooks';
-import { useNotifications } from '../common';
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../../api';
-import { formatDate, formatCurrency } from '../../utils/formatters';
-import FormErrors, { FieldError, getFieldClasses } from '../FormErrors';
-import FormValidator from '../../utils/formValidator';
-import type { Employee, EmployeeFormData } from '../../types';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { usePageData, PageLoadingSpinner } from '@renderer/hooks';
+import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '@renderer/api';
+import { formatDate, formatCurrency } from '@renderer/utils/formatters';
+import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+import FormValidator from '@renderer/utils/formValidator';
+import type { Employee, EmployeeFormData } from '@renderer/types';
 
 const initialFormData: EmployeeFormData = {
   name: '',
@@ -20,7 +19,6 @@ const initialFormData: EmployeeFormData = {
 };
 
 export default function EmployeesPage() {
-  const { showSuccess, showError } = useNotifications();
   
   const [formData, setFormData] = useState<EmployeeFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});

@@ -7,7 +7,7 @@
  */
 
 import * as path from 'path';
-import type { AppConfig } from '../types/config';
+import type { AppConfig } from 'types/config';
 
 /**
  * Определение режима работы приложения

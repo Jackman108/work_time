@@ -5,9 +5,9 @@
  */
 
 import { eq, SQL, desc } from 'drizzle-orm';
-import { db, materialLog, materials, projects } from '../db';
+import { db, materialLog, materials, projects } from 'db';
 import type { Types } from 'types';
-import { buildWhereClause, addDateFilters, addIdFilter } from './utils/queryBuilder';
+import { buildWhereClause, addDateFilters, addIdFilter } from '@services/utils/queryBuilder';
 
 /**
  * Получить все записи списания материалов с JOIN для имён

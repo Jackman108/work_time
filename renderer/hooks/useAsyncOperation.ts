@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useNotifications } from '../components/common';
+import { useNotifications } from '@renderer/components/common';
 
 interface UseAsyncOperationOptions {
   onSuccess?: (result: unknown) => void;

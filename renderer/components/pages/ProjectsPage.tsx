@@ -2,14 +2,13 @@
  * Страница управления строительными объектами
  */
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { usePageData, PageLoadingSpinner } from '../../hooks';
-import { useNotifications } from '../common';
-import { getProjects, createProject, updateProject, deleteProject } from '../../api';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import FormErrors, { FieldError, getFieldClasses } from '../FormErrors';
-import FormValidator from '../../utils/formValidator';
-import type { Project, ProjectFormData } from '../../types';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { usePageData, PageLoadingSpinner } from '@renderer/hooks';
+import { getProjects, createProject, updateProject, deleteProject } from '@renderer/api';
+import { formatCurrency, formatDate } from '@renderer/utils/formatters';
+import FormErrors, { FieldError, getFieldClasses } from '@renderer/components/FormErrors';
+import FormValidator from '@renderer/utils/formValidator';
+import type { Project, ProjectFormData } from '@renderer/types';
 
 const initialFormData: ProjectFormData = {
   name: '',
@@ -21,8 +20,6 @@ const initialFormData: ProjectFormData = {
 };
 
 export default function ProjectsPage() {
-  const { showSuccess, showError } = useNotifications();
-  
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);

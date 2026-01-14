@@ -10,19 +10,20 @@ import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electro
 import * as path from 'path';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
-import type { AppConfig } from './types/config';
-import type { IpcChannels } from './types/ipc-channels';
-import { ErrorHandler } from './services/base/ErrorHandler';
-import configModule from './config/app.config';
-import { IPC_CHANNELS as IPC_CHANNELS_IMPORT } from './config/ipc-channels';
-import type * as ProjectsService from './services/projects';
-import type * as EmployeesService from './services/employees';
-import type * as MaterialsService from './services/materials';
-import type * as WorkLogService from './services/workLog';
-import type * as MaterialLogService from './services/materialLog';
-import type * as ProjectPaymentsService from './services/projectPayments';
-import type * as ReportsService from './services/reports';
-import type * as BackupService from './services/backup/index';
+import type { AppConfig } from 'types/config';
+import type { IpcChannels } from 'types/ipc-channels';
+import { ErrorHandler } from '@services/base/ErrorHandler';
+import { InputValidator, ValidationSchemas } from '@services/validation';
+import configModule from '@config/app.config';
+import { IPC_CHANNELS as IPC_CHANNELS_IMPORT } from '@config/ipc-channels';
+import type * as ProjectsService from '@services/legacy/projects';
+import type * as EmployeesService from '@services/legacy/employees';
+import type * as MaterialsService from '@services/legacy/materials';
+import type * as WorkLogService from '@services/legacy/workLog';
+import type * as MaterialLogService from '@services/legacy/materialLog';
+import type * as ProjectPaymentsService from '@services/legacy/projectPayments';
+import type * as ReportsService from '@services/legacy/reports';
+import type * as BackupService from '@services/backup/index';
 
 // Настройка кодировки консоли для Windows (исправление иероглифов)
 if (process.platform === 'win32') {
@@ -72,19 +73,19 @@ let backupService: typeof BackupService;
 /**
  * Загрузить все сервисы
  */
-function loadServices(): void {
+async function loadServices(): Promise<void> {
     try {
-        projectsService = require('./services/projects');
-        employeesService = require('./services/employees');
-        materialsService = require('./services/materials');
-        workLogService = require('./services/workLog');
-        materialLogService = require('./services/materialLog');
-        projectPaymentsService = require('./services/projectPayments');
-        reportsService = require('./services/reports');
-        backupService = require('./services/backup/index');
+        projectsService = await import('@services/legacy/projects');
+        employeesService = await import('@services/legacy/employees');
+        materialsService = await import('@services/legacy/materials');
+        workLogService = await import('@services/legacy/workLog');
+        materialLogService = await import('@services/legacy/materialLog');
+        projectPaymentsService = await import('@services/legacy/projectPayments');
+        reportsService = await import('@services/legacy/reports');
+        backupService = await import('@services/backup/index');
     } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        console.error('Ошибка загрузки сервисов:', err.message);
+        console.error('Error loading services:', err.message);
         throw err;
     }
 }
@@ -92,56 +93,19 @@ function loadServices(): void {
 /**
  * Перезагрузить все сервисы после импорта БД
  * Очищает кеш модулей и перезагружает сервисы для получения нового соединения с БД
+ * Оптимизировано: использует централизованную утилиту для очистки кеша
  */
-function reloadServices(): void {
-    // Убрали лог перезагрузки сервисов - это происходит слишком часто
+async function reloadServices(): Promise<void> {
+    // Импортируем утилиту для управления кешем модулей
+    const { clearDatabaseModuleCache } = await import('@services/utils/moduleCache');
 
-    // Очищаем кеш всех модулей, связанных с БД
-    const modulesToClear = [
-        './database',
-        './db',
-        './db/index',
-        './db/schema',
-        './services/projects',
-        './services/employees',
-        './services/materials',
-        './services/workLog',
-        './services/materialLog',
-        './services/projectPayments',
-        './services/reports',
-        './services/backup',
-        './services/base/BaseService',
-        './services/base/ErrorHandler',
-        './services/utils/fieldMapper',
-        './services/utils/queryBuilder'
-    ];
-
-    modulesToClear.forEach(modulePath => {
-        try {
-            const resolvedPath = require.resolve(modulePath);
-            delete require.cache[resolvedPath];
-        } catch (e) {
-            // Игнорируем ошибки (файл может не существовать)
-        }
-    });
-
-    // Оптимизированная очистка: удаляем только критичные модули БД (не все сервисы!)
-    // Очистка всех модулей с 'services' слишком медленная и не нужна
-    const criticalKeys = Object.keys(require.cache).filter(key => 
-        (key.includes('/db/') || key.includes('\\db\\')) || 
-        (key.includes('/database') || key.includes('\\database'))
-    );
-    criticalKeys.forEach(key => {
-        try {
-            delete require.cache[key];
-        } catch (e) {
-            // Игнорируем ошибки
-        }
-    });
+    // Очищаем только критичные модули БД (быстро и эффективно)
+    // Сервисы не очищаем - они получат новое соединение через Proxy в db/index.ts
+    clearDatabaseModuleCache(false);
 
     // Переоткрываем соединения с БД перед перезагрузкой сервисов
     try {
-        const dbModule = require('./db');
+        const dbModule = await import('db');
         if (dbModule.reconnectDatabase) {
             dbModule.reconnectDatabase();
         }
@@ -149,18 +113,18 @@ function reloadServices(): void {
             dbModule.setForceReconnect();
         }
     } catch (e) {
-        // Игнорируем
+        // Игнорируем ошибки
     }
 
-    // Перезагружаем сервисы ПОСЛЕ переоткрытия соединений (синхронно)
+    // Перезагружаем сервисы ПОСЛЕ переоткрытия соединений
     // Это гарантирует, что сервисы получат уже открытые соединения с восстановленной БД
-    loadServices();
-
-    // Убрали лог успешной перезагрузки - это происходит слишком часто
+    await loadServices();
 }
 
 // Первоначальная загрузка сервисов
-loadServices();
+loadServices().catch(err => {
+    console.error('Error loading services on startup:', err);
+});
 
 /**
  * Создать главное окно приложения
@@ -187,10 +151,10 @@ function createWindow(): BrowserWindow {
     // Проверяем существование файлов только в production
     if (!config.env.isDev) {
         if (!fs.existsSync(preloadPath)) {
-            console.error('[MAIN] ОШИБКА: preload.js не найден по пути:', preloadPath);
+            console.error('[MAIN] ERROR: preload.js not found at path:', preloadPath);
         }
         if (!fs.existsSync(distPath)) {
-            console.error('[MAIN] ОШИБКА: dist/index.html не найден по пути:', distPath);
+            console.error('[MAIN] ERROR: dist/index.html not found at path:', distPath);
         }
     }
 
@@ -208,26 +172,37 @@ function createWindow(): BrowserWindow {
         }
     });
 
-    // Открываем DevTools только в режиме разработки
-    if (config.env.isDev) {
+    // Проверяем наличие собранных файлов - если они есть, используем их даже в dev режиме
+    const hasBuiltFiles = fs.existsSync(distPath);
+
+    // Открываем DevTools только в режиме разработки и только если нет собранных файлов
+    if (config.env.isDev && !hasBuiltFiles) {
         win.webContents.openDevTools();
     }
 
     // Обработка ошибок загрузки
     win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-        console.error('[MAIN] Ошибка загрузки:', errorCode, errorDescription, validatedURL);
+        console.error('[MAIN] Load error:', errorCode, errorDescription, validatedURL);
     });
 
     // Загрузка приложения в зависимости от режима
-    if (config.env.isDev) {
-        console.log('[MAIN] Загрузка из dev server:', config.electron.devServerUrl);
+
+    if (config.env.isDev && !hasBuiltFiles) {
+        // Dev режим и нет собранных файлов - используем dev server
+        console.log('[MAIN] Loading from dev server:', config.electron.devServerUrl);
         win.loadURL(config.electron.devServerUrl);
         win.webContents.on('console-message', (_event, level, message) => {
             console.log(`[Renderer ${level}]`, message);
         });
     } else {
+        // Production режим или есть собранные файлы - используем их
+        if (hasBuiltFiles) {
+            console.log('[MAIN] Loading from built files:', distPath);
+        } else {
+            console.log('[MAIN] Production mode, loading from:', distPath);
+        }
         win.loadFile(distPath).catch((error) => {
-            console.error('[MAIN] Ошибка загрузки файла:', error);
+            console.error('[MAIN] Error loading file:', error);
         });
     }
 
@@ -241,34 +216,58 @@ function createWindow(): BrowserWindow {
 
 /**
  * Тип для IPC обработчика
+ * Обработчик может принимать event как первый параметр или не принимать его
  */
 type IpcHandler<T extends any[] = any[], R = any> =
     | ((...args: T) => Promise<R> | R)
     | ((event: IpcMainInvokeEvent, ...args: T) => Promise<R> | R);
 
 /**
- * Обёртка для IPC обработчиков с автоматической обработкой ошибок
+ * Обёртка для IPC обработчиков с автоматической обработкой ошибок и валидацией
+ * 
+ * УЛУЧШЕНИЕ: Использует проверку количества параметров вместо toString() для определения,
+ * нужен ли event. Это более надёжно и работает даже при минификации кода.
+ * 
  * @param channel - Канал IPC
  * @param handler - Функция-обработчик (может принимать event как первый параметр)
+ * @param validator - Опциональная функция валидации входных данных
+ * @param needsEvent - Явно указать, нужен ли event (если не указано, определяется автоматически)
  */
 function registerIpcHandler<T extends any[] = any[], R = any>(
     channel: string,
-    handler: IpcHandler<T, R>
+    handler: IpcHandler<T, R>,
+    validator?: (args: any[]) => { isValid: boolean; errors?: Record<string, string> },
+    needsEvent?: boolean
 ): void {
     ipcMain.handle(channel, async (event, ...args: any[]) => {
         try {
-            const handlerStr = handler.toString();
-            const needsEvent = handlerStr.includes('(event') || handlerStr.includes('( event');
+            // Валидация входных данных, если предоставлена
+            if (validator) {
+                const validation = validator(args);
+                if (!validation.isValid) {
+                    const errorMessage = validation.errors
+                        ? Object.values(validation.errors).join(', ')
+                        : 'Невалидные входные данные';
+                    throw new Error(errorMessage);
+                }
+            }
+
+            // Определяем, нужен ли event как первый параметр
+            // УЛУЧШЕНИЕ: Используем явный флаг needsEvent вместо toString()
+            // Это более надёжно и работает даже при минификации/обфускации кода
+            const shouldPassEvent = needsEvent ?? false;
 
             let result: R;
-            if (needsEvent) {
+            // Вызываем handler с event или без, в зависимости от флага needsEvent
+            if (shouldPassEvent) {
                 result = await (handler as (event: IpcMainInvokeEvent, ...args: any[]) => Promise<R> | R)(event, ...args);
             } else {
                 result = await (handler as (...args: any[]) => Promise<R> | R)(...args);
             }
-            return ErrorHandler.success(result);
+
+            return ErrorHandler.success(result, channel);
         } catch (error) {
-            return ErrorHandler.handle(error, channel);
+            return ErrorHandler.handle(error, channel, { args: args.length > 0 ? 'present' : 'empty' });
         }
     });
 }
@@ -288,7 +287,7 @@ app.whenReady().then(() => {
 // Делаем функцию reloadServices доступной глобально для использования в backup.ts
 declare global {
     // eslint-disable-next-line no-var
-    var reloadServices: () => void;
+    var reloadServices: () => Promise<void>;
 }
 
 (global as any).reloadServices = reloadServices;
@@ -312,52 +311,307 @@ process.on('unhandledRejection', (reason: unknown) => {
 
 // ---------- Проекты (строительные объекты) ----------
 registerIpcHandler(IPC_CHANNELS.PROJECTS.GET_ALL, () => projectsService.getAllProjects());
-registerIpcHandler(IPC_CHANNELS.PROJECTS.GET_BY_ID, (id: number) => projectsService.getProjectById(id));
-registerIpcHandler(IPC_CHANNELS.PROJECTS.CREATE, (data: any) => projectsService.createProject(data));
-registerIpcHandler(IPC_CHANNELS.PROJECTS.UPDATE, (id: number, data: any) => projectsService.updateProject(id, data));
-registerIpcHandler(IPC_CHANNELS.PROJECTS.DELETE, (id: number) => projectsService.deleteProject(id));
-registerIpcHandler(IPC_CHANNELS.PROJECTS.GET_STATS, (projectId: number) => projectsService.getProjectStats(projectId));
+registerIpcHandler(
+    IPC_CHANNELS.PROJECTS.GET_BY_ID,
+    (id: number) => projectsService.getProjectById(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.PROJECTS.CREATE,
+    (data: any) => {
+        const validation = InputValidator.validate(data, ValidationSchemas.project);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return projectsService.createProject(data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.PROJECTS.UPDATE,
+    (id: number, data: any) => {
+        const validatedId = InputValidator.validateId(id, 'id');
+        const validation = InputValidator.validate(data, ValidationSchemas.project);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return projectsService.updateProject(validatedId, data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.PROJECTS.DELETE,
+    (id: number) => projectsService.deleteProject(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.PROJECTS.GET_STATS,
+    (projectId: number) => projectsService.getProjectStats(InputValidator.validateId(projectId, 'projectId')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'projectId');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { projectId: (error as Error).message } };
+        }
+    }
+);
 
 // ---------- Сотрудники ----------
 registerIpcHandler(IPC_CHANNELS.EMPLOYEES.GET_ALL, () => employeesService.getAllEmployees());
-registerIpcHandler(IPC_CHANNELS.EMPLOYEES.GET_BY_ID, (id: number) => employeesService.getEmployeeById(id));
-registerIpcHandler(IPC_CHANNELS.EMPLOYEES.CREATE, (data: any) => employeesService.createEmployee(data));
-registerIpcHandler(IPC_CHANNELS.EMPLOYEES.UPDATE, (id: number, data: any) => employeesService.updateEmployee(id, data));
-registerIpcHandler(IPC_CHANNELS.EMPLOYEES.DELETE, (id: number) => employeesService.deleteEmployee(id));
+registerIpcHandler(
+    IPC_CHANNELS.EMPLOYEES.GET_BY_ID,
+    (id: number) => employeesService.getEmployeeById(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.EMPLOYEES.CREATE,
+    (data: any) => {
+        const validation = InputValidator.validate(data, ValidationSchemas.employee);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return employeesService.createEmployee(data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.EMPLOYEES.UPDATE,
+    (id: number, data: any) => {
+        const validatedId = InputValidator.validateId(id, 'id');
+        const validation = InputValidator.validate(data, ValidationSchemas.employee);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return employeesService.updateEmployee(validatedId, data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.EMPLOYEES.DELETE,
+    (id: number) => employeesService.deleteEmployee(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
 registerIpcHandler(
     IPC_CHANNELS.EMPLOYEES.GET_STATS,
     (employeeId: number, dateFrom: string | null, dateTo: string | null) =>
-        employeesService.getEmployeeStats(employeeId, dateFrom, dateTo)
+        employeesService.getEmployeeStats(
+            InputValidator.validateId(employeeId, 'employeeId'),
+            dateFrom,
+            dateTo
+        ),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'employeeId');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { employeeId: (error as Error).message } };
+        }
+    }
 );
 
 // ---------- Материалы ----------
 registerIpcHandler(IPC_CHANNELS.MATERIALS.GET_ALL, () => materialsService.getAllMaterials());
-registerIpcHandler(IPC_CHANNELS.MATERIALS.GET_BY_ID, (id: number) => materialsService.getMaterialById(id));
-registerIpcHandler(IPC_CHANNELS.MATERIALS.CREATE, (data: any) => materialsService.createMaterial(data));
-registerIpcHandler(IPC_CHANNELS.MATERIALS.UPDATE, (id: number, data: any) => materialsService.updateMaterial(id, data));
-registerIpcHandler(IPC_CHANNELS.MATERIALS.DELETE, (id: number) => materialsService.deleteMaterial(id));
-registerIpcHandler(IPC_CHANNELS.MATERIALS.GET_STATS, (materialId: number) => materialsService.getMaterialStats(materialId));
+registerIpcHandler(
+    IPC_CHANNELS.MATERIALS.GET_BY_ID,
+    (id: number) => materialsService.getMaterialById(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.MATERIALS.CREATE,
+    (data: any) => {
+        const validation = InputValidator.validate(data, ValidationSchemas.material);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return materialsService.createMaterial(data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.MATERIALS.UPDATE,
+    (id: number, data: any) => {
+        const validatedId = InputValidator.validateId(id, 'id');
+        const validation = InputValidator.validate(data, ValidationSchemas.material);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return materialsService.updateMaterial(validatedId, data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.MATERIALS.DELETE,
+    (id: number) => materialsService.deleteMaterial(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.MATERIALS.GET_STATS,
+    (materialId: number) => materialsService.getMaterialStats(InputValidator.validateId(materialId, 'materialId')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'materialId');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { materialId: (error as Error).message } };
+        }
+    }
+);
 
 // ---------- Учёт рабочего времени ----------
 registerIpcHandler(IPC_CHANNELS.WORK_LOG.GET_ALL, (filters: any) => workLogService.getAllWorkLogs(filters));
-registerIpcHandler(IPC_CHANNELS.WORK_LOG.CREATE, (data: any) => workLogService.createWorkLog(data));
-registerIpcHandler(IPC_CHANNELS.WORK_LOG.UPDATE, (id: number, data: any) => workLogService.updateWorkLog(id, data));
-registerIpcHandler(IPC_CHANNELS.WORK_LOG.DELETE, (id: number) => workLogService.deleteWorkLog(id));
+registerIpcHandler(
+    IPC_CHANNELS.WORK_LOG.CREATE,
+    (data: any) => {
+        const validation = InputValidator.validate(data, ValidationSchemas.workLog);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return workLogService.createWorkLog(data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.WORK_LOG.UPDATE,
+    (id: number, data: any) => {
+        const validatedId = InputValidator.validateId(id, 'id');
+        const validation = InputValidator.validate(data, ValidationSchemas.workLog);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return workLogService.updateWorkLog(validatedId, data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.WORK_LOG.DELETE,
+    (id: number) => workLogService.deleteWorkLog(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
 
 // ---------- Учёт списания материалов ----------
 registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.GET_ALL, (filters: any) => materialLogService.getAllMaterialLogs(filters));
-registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.CREATE, (data: any) => materialLogService.createMaterialLog(data));
-registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.UPDATE, (id: number, data: any) => materialLogService.updateMaterialLog(id, data));
-registerIpcHandler(IPC_CHANNELS.MATERIAL_LOG.DELETE, (id: number) => materialLogService.deleteMaterialLog(id));
+registerIpcHandler(
+    IPC_CHANNELS.MATERIAL_LOG.CREATE,
+    (data: any) => {
+        const validation = InputValidator.validate(data, ValidationSchemas.materialLog);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return materialLogService.createMaterialLog(data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.MATERIAL_LOG.UPDATE,
+    (id: number, data: any) => {
+        const validatedId = InputValidator.validateId(id, 'id');
+        const validation = InputValidator.validate(data, ValidationSchemas.materialLog);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return materialLogService.updateMaterialLog(validatedId, data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.MATERIAL_LOG.DELETE,
+    (id: number) => materialLogService.deleteMaterialLog(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
 
 // ---------- Поступления денег на проекты ----------
 registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.GET_ALL, (filters: any) => projectPaymentsService.getAllProjectPayments(filters));
-registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.CREATE, (data: any) => projectPaymentsService.createProjectPayment(data));
-registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.UPDATE, (id: number, data: any) => projectPaymentsService.updateProjectPayment(id, data));
-registerIpcHandler(IPC_CHANNELS.PROJECT_PAYMENTS.DELETE, (id: number) => projectPaymentsService.deleteProjectPayment(id));
+registerIpcHandler(
+    IPC_CHANNELS.PROJECT_PAYMENTS.CREATE,
+    (data: any) => {
+        const validation = InputValidator.validate(data, ValidationSchemas.projectPayment);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return projectPaymentsService.createProjectPayment(data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.PROJECT_PAYMENTS.UPDATE,
+    (id: number, data: any) => {
+        const validatedId = InputValidator.validateId(id, 'id');
+        const validation = InputValidator.validate(data, ValidationSchemas.projectPayment);
+        if (!validation.isValid) {
+            throw new Error(Object.values(validation.errors).join(', '));
+        }
+        return projectPaymentsService.updateProjectPayment(validatedId, data);
+    }
+);
+registerIpcHandler(
+    IPC_CHANNELS.PROJECT_PAYMENTS.DELETE,
+    (id: number) => projectPaymentsService.deleteProjectPayment(InputValidator.validateId(id, 'id')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'id');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { id: (error as Error).message } };
+        }
+    }
+);
 registerIpcHandler(
     IPC_CHANNELS.PROJECT_PAYMENTS.GET_TOTAL_BY_PROJECT,
-    (projectId: number) => projectPaymentsService.getTotalPaymentsByProject(projectId)
+    (projectId: number) => projectPaymentsService.getTotalPaymentsByProject(InputValidator.validateId(projectId, 'projectId')),
+    (args) => {
+        try {
+            InputValidator.validateId(args[0], 'projectId');
+            return { isValid: true };
+        } catch (error) {
+            return { isValid: false, errors: { projectId: (error as Error).message } };
+        }
+    }
 );
 
 // ---------- Отчёты и аналитика ----------
@@ -378,33 +632,44 @@ registerIpcHandler(IPC_CHANNELS.BACKUP.GET_EXE_DIRECTORY, () => backupService.ge
 registerIpcHandler(IPC_CHANNELS.BACKUP.GET_CURRENT_DATABASE_INFO, () => backupService.getCurrentDatabaseInfo());
 
 // ---------- Диалоги выбора файлов ----------
-registerIpcHandler(IPC_CHANNELS.DIALOG.SHOW_OPEN_DIALOG, async (event: IpcMainInvokeEvent, options?: Electron.OpenDialogOptions) => {
-    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getAllWindows()[0];
-    const result = await dialog.showOpenDialog(win, options || {
-        properties: ['openFile'],
-        filters: [
-            { name: 'База данных', extensions: ['db'] },
-            { name: 'Все файлы', extensions: ['*'] }
-        ]
-    });
-    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-        return null;
-    }
-    return {
-        canceled: false,
-        filePaths: result.filePaths
-    };
-});
+// УЛУЧШЕНИЕ: Явно указываем needsEvent=true для обработчиков диалогов
+registerIpcHandler(
+    IPC_CHANNELS.DIALOG.SHOW_OPEN_DIALOG,
+    async (event: IpcMainInvokeEvent, options?: Electron.OpenDialogOptions) => {
+        const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getAllWindows()[0];
+        const result = await dialog.showOpenDialog(win, options || {
+            properties: ['openFile'],
+            filters: [
+                { name: 'База данных', extensions: ['db'] },
+                { name: 'Все файлы', extensions: ['*'] }
+            ]
+        });
+        if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+            return null;
+        }
+        return {
+            canceled: false,
+            filePaths: result.filePaths
+        };
+    },
+    undefined, // validator
+    true // needsEvent - явно указываем, что нужен event
+);
 
-registerIpcHandler(IPC_CHANNELS.DIALOG.SHOW_SAVE_DIALOG, async (event: IpcMainInvokeEvent, options?: Electron.SaveDialogOptions) => {
-    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getAllWindows()[0];
-    const result = await dialog.showSaveDialog(win, options || {
-        filters: [
-            { name: 'База данных', extensions: ['db'] },
-            { name: 'Все файлы', extensions: ['*'] }
-        ],
-        defaultPath: 'app_backup.db'
-    });
-    return result.canceled ? null : result.filePath;
-});
+registerIpcHandler(
+    IPC_CHANNELS.DIALOG.SHOW_SAVE_DIALOG,
+    async (event: IpcMainInvokeEvent, options?: Electron.SaveDialogOptions) => {
+        const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getAllWindows()[0];
+        const result = await dialog.showSaveDialog(win, options || {
+            filters: [
+                { name: 'База данных', extensions: ['db'] },
+                { name: 'Все файлы', extensions: ['*'] }
+            ],
+            defaultPath: 'app_backup.db'
+        });
+        return result.canceled ? null : result.filePath;
+    },
+    undefined, // validator
+    true // needsEvent - явно указываем, что нужен event
+);
 
