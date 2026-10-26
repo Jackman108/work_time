@@ -7,8 +7,9 @@ dist/
 dist-main/
 release/
 build/
+*.tsbuildinfo
 
-# Database files
+# Database files (local SQLite)
 *.db
 *.db-shm
 *.db-wal
@@ -18,8 +19,6 @@ db/app_temp_*.db
 db/app_corrupted_*.db
 db/*.backup.*
 db/*.rollback.*
-
-# Database files in dist-main (should not be used, but ignore them if they exist)
 dist-main/db/*.db
 dist-main/db/*.db-shm
 dist-main/db/*.db-wal
@@ -28,36 +27,35 @@ dist-main/db/*.corrupted.*
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env*.example
 
-# IDE
+# IDE / OS
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Logs
+# Logs / temp
 *.log
 logs/
-
-# Temporary files
 *.tmp
 *.temp
 tmp/
 temp/
+.cache/
 
-# Backup files
+# Backups
 app_backup.db
 *.backup
 backups/
 
-# Compiled TypeScript
+# Compiled maps
 *.js.map
 *.d.ts.map
